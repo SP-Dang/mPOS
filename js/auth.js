@@ -1,5 +1,5 @@
 // =====================================================
-// mPOS - AUTHENTICATION
+// LSM POS - AUTHENTICATION
 // =====================================================
 
 // Get current user
@@ -30,7 +30,7 @@ function handleLogout() {
     }
 }
 
-// Display user name in sidebar (call this on each page)
+// Display user name in sidebar
 function displayUserName() {
     const user = getCurrentUser();
     const userNameElem = document.getElementById('user-name-display');
@@ -39,7 +39,7 @@ function displayUserName() {
     }
 }
 
-// Hide admin menus for cashiers
+// Setup role-based menu hiding
 function setupRoleBasedMenus() {
     const user = getCurrentUser();
     if (user.role !== 'GM') {
