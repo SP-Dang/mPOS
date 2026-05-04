@@ -933,12 +933,42 @@ async function processSale() {
     }
         
         // Update inventory
-        for (const item of cart) {
-            await window.supabaseClient
-                .from('pos_products')
-                .update({ stock_qty: item.stock_qty - item.qty })
-                .eq('barcode', item.barcode);
-        }
+        // Update inventory with proper error handling
+for (const item of cart) {
+    // First verify current stock
+    const { data: currentStock, error: stockError } = await window.supabaseClient
+        .from('pos_products')
+        .select('stock_qty')
+        .eq('barcode', item.barcode)
+        .single();
+    
+    if (stockError) {
+        console.error('Stock check error:', stockError);
+        showToast(`ກວດສອບສະຕັອກບໍ່ສຳເລັດ: ${item.name}`, 'error');
+        throw stockError;
+    }
+    
+    if (currentStock.stock_qty < item.qty) {
+        showToast(`${item.name} ມີເຫຼືອພຽງ ${currentStock.stock_qty} ຊິ້ນ`, 'error');
+        throw new Error('Insufficient stock');
+    }
+    
+    // Then update inventory with current user context
+    const { error: updateError } = await window.supabaseClient
+        .from('pos_products')
+        .update({ 
+            stock_qty: currentStock.stock_qty - item.qty,
+            last_updated: new Date().toISOString()
+        })
+        .eq('barcode', item.barcode);
+    
+    if (updateError) {
+        console.error('Update error:', updateError);
+        showToast(`ອັບເດດສະຕັອກບໍ່ສຳເລັດ: ${item.name}`, 'error');
+        throw updateError;
+    }
+}
+        
         
         // Calculate new points total for customer
         let newPointsTotal = 0;
