@@ -7,11 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: 'Plus Jakarta Sans', 'Phetsarath', sans-serif;
@@ -23,10 +19,7 @@
             padding: 20px;
         }
         
-        .login-container {
-            width: 100%;
-            max-width: 420px;
-        }
+        .login-container { width: 100%; max-width: 420px; }
         
         .login-card {
             background: white;
@@ -36,10 +29,7 @@
             animation: fadeInUp 0.5s ease;
         }
         
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
+        .logo { text-align: center; margin-bottom: 30px; }
         
         .logo-icon {
             font-size: 48px;
@@ -51,23 +41,13 @@
             align-items: center;
             justify-content: center;
             margin: 0 auto 15px;
-            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 10px 20px rgba(16,185,129,0.3);
         }
         
-        .logo h1 {
-            font-size: 28px;
-            color: #1e293b;
-            margin-bottom: 5px;
-        }
+        .logo h1 { font-size: 28px; color: #1e293b; margin-bottom: 5px; }
+        .logo p { color: #64748b; font-size: 13px; }
         
-        .logo p {
-            color: #64748b;
-            font-size: 13px;
-        }
-        
-        .input-group {
-            margin-bottom: 20px;
-        }
+        .input-group { margin-bottom: 20px; }
         
         .input-group label {
             display: block;
@@ -76,25 +56,22 @@
             color: #475569;
             margin-bottom: 8px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
         
-        .input-group select,
-        .input-group input {
+        .input-group select, .input-group input {
             width: 100%;
             padding: 14px 16px;
             border: 2px solid #e2e8f0;
             border-radius: 16px;
             font-size: 16px;
             font-family: inherit;
-            transition: all 0.3s;
             outline: none;
+            transition: all 0.3s;
         }
         
-        .input-group select:focus,
-        .input-group input:focus {
+        .input-group select:focus, .input-group input:focus {
             border-color: #10b981;
-            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+            box-shadow: 0 0 0 4px rgba(16,185,129,0.1);
         }
         
         .pin-input {
@@ -114,23 +91,13 @@
             font-size: 18px;
             font-weight: 800;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            font-family: inherit;
+            transition: all 0.3s;
             margin-top: 10px;
         }
         
         .btn-login:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
-        }
-        
-        .btn-login:active {
-            transform: translateY(0);
-        }
-        
-        .btn-login:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
+            box-shadow: 0 10px 20px rgba(16,185,129,0.3);
         }
         
         .footer {
@@ -143,29 +110,12 @@
         }
         
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
-        .error-message {
-            color: #ef4444;
-            text-align: center;
-            margin-top: 15px;
-            font-size: 13px;
-        }
-        
-        .success-message {
-            color: #10b981;
-            text-align: center;
-            margin-top: 15px;
-            font-size: 13px;
-        }
+        .error-message { color: #ef4444; text-align: center; margin-top: 15px; font-size: 13px; }
+        .success-message { color: #10b981; text-align: center; margin-top: 15px; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -180,7 +130,9 @@
             <div class="input-group">
                 <label>👤 ເລືອກຊື່ພະນັກງານ</label>
                 <select id="staff-select">
-                    <option value="">-- ກຳລັງໂຫຼດ... --</option>
+                    <option value="">-- ເລືອກຊື່ --</option>
+                    <option value="cashier1">🛒 ສົມພອນ (ພະນັກງານຂາຍ)</option>
+                    <option value="gm">👑 ທ່ານ ຜູ້ຈັດການ (GM)</option>
                 </select>
             </div>
             
@@ -189,106 +141,53 @@
                 <input type="password" id="pin-input" class="pin-input" maxlength="4" inputmode="numeric" placeholder="••••">
             </div>
             
-            <button class="btn-login" id="login-btn" onclick="handleLogin()">
-                🚀 ເຂົ້າສູ່ລະບົບ
-            </button>
+            <button class="btn-login" onclick="handleLogin()">🚀 ເຂົ້າສູ່ລະບົບ</button>
             
-            <div id="message" class="error-message"></div>
+            <div id="message"></div>
             
             <div class="footer">
-                <p>Powered by mPOS Retail | ສົມພອນ 02055348882</p>
-                <p style="margin-top: 5px; font-size: 10px;">PIN: cashier1=1111, gm=9999</p>
+                <p>Powered by LSM Retail | ສົມພອນ 02055348882</p>
+                <p style="margin-top: 5px; font-size: 10px;">PIN: Cashier=1111, GM=9999</p>
             </div>
         </div>
     </div>
     
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/auth.js"></script>
+    
     <script>
-        // =====================================================
-        // LOGIN PAGE - NO EXTERNAL DEPENDENCIES
-        // =====================================================
-        
-        // Staff data (matching your Supabase table)
-        const STAFF_DATA = [
-            { id: "26295c52-0994-4ce3-8cb1-cf09e0371e0a", username: "cashier1", full_name: "Somphone", role: "CASHIER", pin: "1111" },
-            { id: "acb923c1-ffda-4a17-a77e-96b667298ee2", username: "gm", full_name: "General Manager", role: "GM", pin: "9999" }
-        ];
-        
-        // Load staff into dropdown
-        function loadStaff() {
-            const select = document.getElementById('staff-select');
-            select.innerHTML = '<option value="">-- ເລືອກຊື່ພະນັກງານ --</option>';
-            
-            STAFF_DATA.forEach(staff => {
-                const option = document.createElement('option');
-                option.value = staff.id;
-                option.setAttribute('data-username', staff.username);
-                option.setAttribute('data-fullname', staff.full_name);
-                option.setAttribute('data-role', staff.role);
-                option.setAttribute('data-pin', staff.pin);
-                const roleText = staff.role === 'GM' ? '👑 ຜູ້ຈັດການ' : '🛒 ພະນັກງານຂາຍ';
-                option.textContent = `${staff.full_name} (${roleText})`;
-                select.appendChild(option);
-            });
-        }
-        
-        function showMessage(msg, type) {
-            const messageDiv = document.getElementById('message');
-            messageDiv.textContent = msg;
-            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
-        }
-        
-        // Handle login
-        function handleLogin() {
-            const select = document.getElementById('staff-select');
-            const selectedOption = select.options[select.selectedIndex];
-            const staffId = select.value;
+        async function handleLogin() {
+            const username = document.getElementById('staff-select').value;
             const pin = document.getElementById('pin-input').value.trim();
-            const btn = document.getElementById('login-btn');
+            const messageDiv = document.getElementById('message');
+            const btn = document.querySelector('.btn-login');
             
-            // Clear previous message
-            showMessage('', '');
+            messageDiv.innerHTML = '';
             
-            if (!staffId) {
-                showMessage('⚠️ ກະລຸນາເລືອກຊື່ພະນັກງານ', 'error');
+            if (!username) {
+                messageDiv.innerHTML = '⚠️ ກະລຸນາເລືອກຊື່ພະນັກງານ';
+                messageDiv.className = 'error-message';
                 return;
             }
             
             if (!pin || pin.length !== 4) {
-                showMessage('⚠️ ກະລຸນາປ້ອນ PIN 4 ຕົວເລກ', 'error');
+                messageDiv.innerHTML = '⚠️ ກະລຸນາປ້ອນ PIN 4 ຕົວເລກ';
+                messageDiv.className = 'error-message';
                 return;
             }
             
             btn.disabled = true;
             btn.innerHTML = '⏳ ກຳລັງກວດສອບ...';
             
-            const fullName = selectedOption.getAttribute('data-fullname');
-            const role = selectedOption.getAttribute('data-role');
-            const correctPin = selectedOption.getAttribute('data-pin');
+            const success = await loginWithPin(username, pin);
             
-            // Check PIN
-            if (pin !== correctPin) {
-                showMessage('❌ ລະຫັດ PIN ບໍ່ຖືກຕ້ອງ', 'error');
+            if (!success) {
+                messageDiv.innerHTML = '❌ ຊື່ຜູ້ໃຊ້ ຫຼື PIN ບໍ່ຖືກຕ້ອງ';
+                messageDiv.className = 'error-message';
                 btn.disabled = false;
                 btn.innerHTML = '🚀 ເຂົ້າສູ່ລະບົບ';
-                return;
             }
-            
-            // Successful login - store user data
-            localStorage.setItem('lsm_user_id', staffId);
-            localStorage.setItem('lsm_user_name', fullName);
-            localStorage.setItem('lsm_role', role);
-            localStorage.setItem('lsm_username', selectedOption.getAttribute('data-username'));
-            
-            showMessage(`✅ ສະບາຍດີ ${fullName}! ກຳລັງພາທ່ານເຂົ້າສູ່ລະບົບ...`, 'success');
-            
-            // Redirect based on role
-            setTimeout(() => {
-                if (role === 'GM') {
-                    window.location.href = 'index.html';
-                } else {
-                    window.location.href = 'pos-checkout.html';
-                }
-            }, 1000);
         }
         
         // Enter key support
@@ -296,14 +195,11 @@
             if (e.key === 'Enter') handleLogin();
         });
         
-        // Focus PIN input after staff selection
+        // Clear PIN when staff changes
         document.getElementById('staff-select').addEventListener('change', () => {
             document.getElementById('pin-input').value = '';
             document.getElementById('pin-input').focus();
         });
-        
-        // Load staff when page loads
-        loadStaff();
     </script>
 </body>
 </html>
