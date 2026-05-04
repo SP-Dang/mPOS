@@ -893,6 +893,21 @@ async function processSale() {
     btn.innerHTML = '⏳ ກຳລັງດຳເນີນການ...';
     
     try {
+        // =============================================
+        // DEBUG: Log cart contents before update
+        // =============================================
+        console.log('=== CART CONTENTS BEFORE SALE ===');
+        cart.forEach((item, idx) => {
+            console.log(`Item ${idx}:`, {
+                name: item.name,
+                barcode: item.barcode,
+                barcodeType: typeof item.barcode,
+                qty: item.qty,
+                stock_qty: item.stock_qty
+            });
+        });
+        console.log('================================');
+        
         const { subtotal, tax, total } = calculateTotals();
         const finalTotal = total - currentDiscount;
         const cashierName = getCurrentUser().name || 'Cashier';
@@ -919,48 +934,65 @@ async function processSale() {
         }
 
         // =============================================
-        // ONE-TIME STOCK VERIFICATION & UPDATE
+        // INVENTORY UPDATE - WITH DEBUG
         // =============================================
         for (const item of cart) {
-            console.log(`Processing: ${item.name} (${item.barcode})`);
+            console.log(`--- Processing: ${item.name} ---`);
             
-            // Get current stock from database
+            // Clean the barcode (ensure it's a string)
+            const cleanBarcode = String(item.barcode).trim();
+            console.log(`Searching for barcode: "${cleanBarcode}" (type: ${typeof cleanBarcode})`);
+            
+            // Get fresh stock from database
             const { data: product, error: fetchError } = await window.supabaseClient
                 .from('pos_products')
                 .select('stock_qty')
-                .eq('barcode', item.barcode)
+                .eq('barcode', cleanBarcode)
                 .single();
             
             if (fetchError) {
-                console.error('Fetch error:', fetchError);
-                showToast(`ບໍ່ພົບສິນຄ້າ: ${item.barcode}`, 'error');
+                console.error('❌ Fetch error:', fetchError);
+                showToast(`ບໍ່ພົບສິນຄ້າ: ${cleanBarcode}`, 'error');
                 throw fetchError;
             }
             
-            console.log(`Current stock: ${product.stock_qty}, Selling: ${item.qty}`);
+            const currentStockInDB = product.stock_qty;
+            const sellingQty = item.qty;
+            const newStock = currentStockInDB - sellingQty;
             
-            // Check if enough stock
-            if (product.stock_qty < item.qty) {
-                showToast(`${item.name} ມີເຫຼືອພຽງ ${product.stock_qty} ຊິ້ນ`, 'error');
-                throw new Error('Insufficient stock');
-            }
+            console.log(`Current DB stock: ${currentStockInDB}, Selling: ${sellingQty}, New: ${newStock}`);
             
-            // Calculate new stock
-            const newStock = product.stock_qty - item.qty;
-            
-            // Update inventory
-            const { error: updateError } = await window.supabaseClient
+            // Perform update
+            const { data: updateData, error: updateError } = await window.supabaseClient
                 .from('pos_products')
                 .update({ stock_qty: newStock })
-                .eq('barcode', item.barcode);
+                .eq('barcode', cleanBarcode)
+                .select();
             
             if (updateError) {
-                console.error('Update error:', updateError);
+                console.error('❌ Update error:', updateError);
                 showToast(`ອັບເດດສະຕັອກບໍ່ສຳເລັດ: ${item.name}`, 'error');
                 throw updateError;
             }
             
-            console.log(`✅ Updated ${item.name}: ${product.stock_qty} → ${newStock}`);
+            console.log('✅ Update response:', updateData);
+            
+            // Verify the update
+            const { data: verify } = await window.supabaseClient
+                .from('pos_products')
+                .select('stock_qty')
+                .eq('barcode', cleanBarcode)
+                .single();
+            
+            console.log(`🔍 Verification: New stock in DB = ${verify.stock_qty}`);
+            
+            if (verify.stock_qty !== newStock) {
+                console.error('❌ MISMATCH! Update did not persist!');
+                showToast(`ການອັບເດດສະຕັອກລົ້ມເຫຼວ: ${item.name}`, 'error');
+                throw new Error('Update failed to persist');
+            }
+            
+            console.log(`✅ SUCCESS: ${item.name} updated from ${currentStockInDB} to ${verify.stock_qty}`);
         }
         
         // Calculate new points total for customer
@@ -976,7 +1008,7 @@ async function processSale() {
                 .eq('phone', selectedCustomer.phone);
         }
         
-        // Save sale to Supabase and GET THE ACTUAL UUID BACK
+        // Save sale to Supabase
         const { data: saleData, error: saleError } = await window.supabaseClient
             .from('pos_sales')
             .insert([{
@@ -993,11 +1025,11 @@ async function processSale() {
             throw saleError;
         }
         
-        // Get the actual Supabase UUID (first 8 characters for display)
+        // Get the actual Supabase UUID
         const fullOrderId = saleData[0].id;
         const shortOrderId = fullOrderId.substring(0, 8).toUpperCase();
         
-        // Print receipt with REAL Supabase ID
+        // Print receipt
         printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, pointsEarned, newPointsTotal);
         
         // Clear cart
@@ -1012,7 +1044,7 @@ async function processSale() {
         showToast(`ຊຳລະສຳເລັດ! ເລກທີບິນ: ${shortOrderId}`, 'success');
         
     } catch (err) {
-        console.error('Sale error:', err);
+        console.error('❌ Sale error:', err);
         showToast(`ເກີດຂໍ້ຜິດພາດ: ${err.message || 'ກະລຸນາລອງໃໝ່'}`, 'error');
     } finally {
         btn.disabled = false;
