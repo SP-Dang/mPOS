@@ -196,71 +196,29 @@
             <div id="message" class="error-message"></div>
             
             <div class="footer">
-                <p>Powered by LSM Retail | ສົມພອນ 02055348882</p>
+                <p>Powered by mPOS Retail | ສົມພອນ 02055348882</p>
                 <p style="margin-top: 5px; font-size: 10px;">PIN: cashier1=1111, gm=9999</p>
             </div>
         </div>
     </div>
     
     <script>
-        // Supabase configuration - YOUR EXISTING CREDENTIALS
-        const SUPABASE_URL = "https://zddelixvencundnkccpq.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZGVsaXh2ZW5jdW5kbmtjY3BxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxMjQ1MzMsImV4cCI6MjA5MDcwMDUzM30.-RPvOYMLzftubrpJ4KSVrqL2eNaopjty30_TrnkGpBo";
+        // =====================================================
+        // LOGIN PAGE - NO EXTERNAL DEPENDENCIES
+        // =====================================================
         
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Staff data (matching your Supabase table)
+        const STAFF_DATA = [
+            { id: "26295c52-0994-4ce3-8cb1-cf09e0371e0a", username: "cashier1", full_name: "Somphone", role: "CASHIER", pin: "1111" },
+            { id: "acb923c1-ffda-4a17-a77e-96b667298ee2", username: "gm", full_name: "General Manager", role: "GM", pin: "9999" }
+        ];
         
-        // Load staff list from Supabase
-        async function loadStaff() {
-            try {
-                const { data, error } = await supabase
-                    .from('pos_staff')
-                    .select('id, username, full_name, role')
-                    .eq('is_active', true)
-                    .order('full_name');
-                
-                if (error) {
-                    console.error('Supabase error:', error);
-                    showMessage('ບໍ່ສາມາດໂຫຼດຂໍ້ມູນພະນັກງານ', 'error');
-                    loadDemoStaff();
-                    return;
-                }
-                
-                if (!data || data.length === 0) {
-                    loadDemoStaff();
-                    return;
-                }
-                
-                const select = document.getElementById('staff-select');
-                select.innerHTML = '<option value="">-- ເລືອກຊື່ພະນັກງານ --</option>';
-                
-                data.forEach(staff => {
-                    const option = document.createElement('option');
-                    option.value = staff.id;
-                    option.setAttribute('data-username', staff.username);
-                    option.setAttribute('data-fullname', staff.full_name);
-                    option.setAttribute('data-role', staff.role);
-                    const roleText = staff.role === 'GM' ? '👑 ຜູ້ຈັດການ' : '🛒 ພະນັກງານຂາຍ';
-                    option.textContent = `${staff.full_name} (${roleText})`;
-                    select.appendChild(option);
-                });
-                
-            } catch (err) {
-                console.error('Error loading staff:', err);
-                loadDemoStaff();
-            }
-        }
-        
-        // Fallback demo staff (based on your CSV data)
-        function loadDemoStaff() {
-            const demoStaff = [
-                { id: 'cashier1', username: 'cashier1', full_name: 'Somphone', role: 'CASHIER', pin: '1111' },
-                { id: 'gm', username: 'gm', full_name: 'General Manager', role: 'GM', pin: '9999' }
-            ];
-            
+        // Load staff into dropdown
+        function loadStaff() {
             const select = document.getElementById('staff-select');
             select.innerHTML = '<option value="">-- ເລືອກຊື່ພະນັກງານ --</option>';
             
-            demoStaff.forEach(staff => {
+            STAFF_DATA.forEach(staff => {
                 const option = document.createElement('option');
                 option.value = staff.id;
                 option.setAttribute('data-username', staff.username);
@@ -280,7 +238,7 @@
         }
         
         // Handle login
-        async function handleLogin() {
+        function handleLogin() {
             const select = document.getElementById('staff-select');
             const selectedOption = select.options[select.selectedIndex];
             const staffId = select.value;
@@ -303,64 +261,23 @@
             btn.disabled = true;
             btn.innerHTML = '⏳ ກຳລັງກວດສອບ...';
             
-            const username = selectedOption.getAttribute('data-username');
             const fullName = selectedOption.getAttribute('data-fullname');
             const role = selectedOption.getAttribute('data-role');
+            const correctPin = selectedOption.getAttribute('data-pin');
             
-            // Check PIN from attribute (for demo mode)
-            let isValidPin = false;
-            const demoPin = selectedOption.getAttribute('data-pin');
-            
-            if (demoPin) {
-                isValidPin = (pin === demoPin);
-            } else {
-                // For live Supabase - check against database
-                try {
-                    const { data, error } = await supabase
-                        .from('pos_staff')
-                        .select('pin_hash')
-                        .eq('id', staffId)
-                        .single();
-                    
-                    // For demo purposes, we're using plain PIN comparison
-                    // In production, you'd compare hashed PINs
-                    if (!error) {
-                        // Simple check for demo - in production use proper hash comparison
-                        isValidPin = (pin === '1111' && role !== 'GM') || (pin === '9999' && role === 'GM');
-                    }
-                } catch (err) {
-                    console.error(err);
-                }
-            }
-            
-            // Fallback role-based PIN check
-            if (!isValidPin) {
-                if (role === 'GM' && pin === '9999') isValidPin = true;
-                else if (role !== 'GM' && pin === '1111') isValidPin = true;
-            }
-            
-            if (!isValidPin) {
+            // Check PIN
+            if (pin !== correctPin) {
                 showMessage('❌ ລະຫັດ PIN ບໍ່ຖືກຕ້ອງ', 'error');
                 btn.disabled = false;
                 btn.innerHTML = '🚀 ເຂົ້າສູ່ລະບົບ';
                 return;
             }
             
-            // Successful login
+            // Successful login - store user data
             localStorage.setItem('lsm_user_id', staffId);
             localStorage.setItem('lsm_user_name', fullName);
             localStorage.setItem('lsm_role', role);
-            localStorage.setItem('lsm_username', username);
-            
-            // Update last login time
-            try {
-                await supabase
-                    .from('pos_staff')
-                    .update({ last_login: new Date().toISOString() })
-                    .eq('id', staffId);
-            } catch (err) {
-                console.error('Failed to update last login:', err);
-            }
+            localStorage.setItem('lsm_username', selectedOption.getAttribute('data-username'));
             
             showMessage(`✅ ສະບາຍດີ ${fullName}! ກຳລັງພາທ່ານເຂົ້າສູ່ລະບົບ...`, 'success');
             
