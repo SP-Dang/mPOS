@@ -917,6 +917,20 @@ async function processSale() {
                 showToast(`ເງິນທອນ: ${formatLAK(change)}`, 'info');
             }
         }
+
+        // Verify stock BEFORE deducting
+    for (const item of cart) {
+    const { data: currentStock, error } = await window.supabaseClient
+        .from('pos_products')
+        .select('stock_qty')
+        .eq('barcode', item.barcode)
+        .single();
+    
+    if (!currentStock || currentStock.stock_qty < item.qty) {
+        showToast(`${item.name} ມີເຫຼືອພຽງ ${currentStock?.stock_qty || 0} ຊິ້ນ`, 'error');
+        return; // Stop the sale
+        }
+    }
         
         // Update inventory
         for (const item of cart) {
