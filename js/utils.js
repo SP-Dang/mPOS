@@ -1,5 +1,5 @@
 // =====================================================
-// LSM POS - SHARED UTILITIES
+// mPOS - SHARED UTILITIES
 // =====================================================
 
 // Format currency in Lao Kip
@@ -44,7 +44,19 @@ function calculateCartTotals(cart, taxRate = 7) {
     return { subtotal, tax, total };
 }
 
-// Generate order ID
-function generateOrderId() {
-    return 'ORD-' + Date.now().toString().slice(-8) + Math.random().toString(36).substr(2, 4).toUpperCase();
+// Generate short order ID from full UUID
+function getShortOrderId(fullUuid) {
+    return fullUuid.substring(0, 8).toUpperCase();
+}
+
+// Format date for receipt
+function formatReceiptDate() {
+    const now = new Date();
+    const day = now.getDate().toString().padStart(2, '0');
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 }
