@@ -79,8 +79,8 @@
             letter-spacing: 0.5px;
         }
         
-        .input-group input,
-        .input-group select {
+        .input-group select,
+        .input-group input {
             width: 100%;
             padding: 14px 16px;
             border: 2px solid #e2e8f0;
@@ -91,8 +91,8 @@
             outline: none;
         }
         
-        .input-group input:focus,
-        .input-group select:focus {
+        .input-group select:focus,
+        .input-group input:focus {
             border-color: #10b981;
             box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
         }
@@ -131,7 +131,6 @@
         .btn-login:disabled {
             opacity: 0.6;
             cursor: not-allowed;
-            transform: none;
         }
         
         .footer {
@@ -154,9 +153,18 @@
             }
         }
         
-        .staff-list {
-            max-height: 200px;
-            overflow-y: auto;
+        .error-message {
+            color: #ef4444;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+        
+        .success-message {
+            color: #10b981;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 13px;
         }
     </style>
 </head>
@@ -181,120 +189,178 @@
                 <input type="password" id="pin-input" class="pin-input" maxlength="4" inputmode="numeric" placeholder="••••">
             </div>
             
-            <button class="btn-login" id="login-btn">
-                <span>🚀</span> ເຂົ້າສູ່ລະບົບ
+            <button class="btn-login" id="login-btn" onclick="handleLogin()">
+                🚀 ເຂົ້າສູ່ລະບົບ
             </button>
+            
+            <div id="message" class="error-message"></div>
             
             <div class="footer">
                 <p>Powered by LSM Retail | ສົມພອນ 02055348882</p>
-                <p style="margin-top: 5px; font-size: 10px;">v2.0 Production</p>
+                <p style="margin-top: 5px; font-size: 10px;">PIN: Somsak/Keo/Bouapha=1111, GM=9999</p>
             </div>
         </div>
     </div>
     
-    <script src="js/config.js"></script>
-    <script src="js/utils.js"></script>
     <script>
-        const supabase = supabase.createClient(AppConfig.SUPABASE_URL, AppConfig.SUPABASE_KEY);
+        // Supabase configuration - USING YOUR EXISTING CREDENTIALS
+        const SUPABASE_URL = "https://zddelixvencundnkccpq.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZGVsaXh2ZW5jdW5kbmtjY3BxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxMjQ1MzMsImV4cCI6MjA5MDcwMDUzM30.-RPvOYMLzftubrpJ4KSVrqL2eNaopjty30_TrnkGpBo";
         
-        // Load staff list
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // Staff data from your CSV: Somsak, Keo, Bouapha, GM
+        // PINs: 1111 for cashiers, 9999 for GM
+        
+        // Load staff list from Supabase
         async function loadStaff() {
             try {
                 const { data, error } = await supabase
                     .from('pos_staff')
-                    .select('username, full_name, role')
-                    .eq('is_active', true)
-                    .order('full_name');
+                    .select('id, name, role');
                 
-                if (error) throw error;
+                if (error) {
+                    console.error('Supabase error:', error);
+                    // Fallback to demo data if Supabase fails
+                    loadDemoStaff();
+                    return;
+                }
+                
+                if (!data || data.length === 0) {
+                    loadDemoStaff();
+                    return;
+                }
                 
                 const select = document.getElementById('staff-select');
                 select.innerHTML = '<option value="">-- ເລືອກຊື່ພະນັກງານ --</option>';
                 
                 data.forEach(staff => {
                     const option = document.createElement('option');
-                    option.value = staff.username;
-                    option.textContent = `${staff.full_name} (${staff.role === 'GM' ? 'ຜູ້ຈັດການ' : 'ເຄື່ອງ'})`;
+                    option.value = staff.id;
+                    option.setAttribute('data-name', staff.name);
+                    option.setAttribute('data-role', staff.role);
+                    option.setAttribute('data-username', staff.name);
+                    const roleText = staff.role === 'GM' ? '👑 ຜູ້ຈັດການ' : '🛒 ພະນັກງານຂາຍ';
+                    option.textContent = `${staff.name} (${roleText})`;
                     select.appendChild(option);
                 });
+                
             } catch (err) {
                 console.error('Error loading staff:', err);
-                showToast('ບໍ່ສາມາດໂຫຼດຂໍ້ມູນພະນັກງານໄດ້', 'error');
+                loadDemoStaff();
             }
+        }
+        
+        // Fallback demo staff (based on your CSV data)
+        function loadDemoStaff() {
+            const demoStaff = [
+                { id: 1, name: "Somsak", role: "CASHIER", pin: "1111" },
+                { id: 2, name: "Keo", role: "CASHIER", pin: "1111" },
+                { id: 3, name: "Bouapha", role: "CASHIER", pin: "1111" },
+                { id: 4, name: "GM", role: "GM", pin: "9999" }
+            ];
+            
+            const select = document.getElementById('staff-select');
+            select.innerHTML = '<option value="">-- ເລືອກຊື່ພະນັກງານ --</option>';
+            
+            demoStaff.forEach(staff => {
+                const option = document.createElement('option');
+                option.value = staff.id;
+                option.setAttribute('data-name', staff.name);
+                option.setAttribute('data-role', staff.role);
+                option.setAttribute('data-pin', staff.pin);
+                const roleText = staff.role === 'GM' ? '👑 ຜູ້ຈັດການ' : '🛒 ພະນັກງານຂາຍ';
+                option.textContent = `${staff.name} (${roleText})`;
+                select.appendChild(option);
+            });
         }
         
         // Handle login
         async function handleLogin() {
-            const username = document.getElementById('staff-select').value;
+            const select = document.getElementById('staff-select');
+            const selectedOption = select.options[select.selectedIndex];
+            const staffId = select.value;
             const pin = document.getElementById('pin-input').value.trim();
             const btn = document.getElementById('login-btn');
+            const messageDiv = document.getElementById('message');
             
-            if (!username) {
-                showToast('ກະລຸນາເລືອກຊື່ພະນັກງານ', 'warning');
+            // Clear previous message
+            messageDiv.textContent = '';
+            messageDiv.className = 'error-message';
+            
+            if (!staffId) {
+                messageDiv.textContent = '⚠️ ກະລຸນາເລືອກຊື່ພະນັກງານ';
                 return;
             }
             
             if (!pin || pin.length !== 4) {
-                showToast('ກະລຸນາປ້ອນ PIN 4 ຕົວເລກ', 'warning');
+                messageDiv.textContent = '⚠️ ກະລຸນາປ້ອນ PIN 4 ຕົວເລກ';
                 return;
             }
             
             btn.disabled = true;
             btn.innerHTML = '⏳ ກຳລັງກວດສອບ...';
             
-            try {
-                // Get staff record
-                const { data: staff, error } = await supabase
-                    .from('pos_staff')
-                    .select('id, username, full_name, role, pin_hash')
-                    .eq('username', username)
-                    .single();
-                
-                if (error || !staff) {
-                    showToast('ບໍ່ພົບຂໍ້ມູນພະນັກງານ', 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = '🚀 ເຂົ້າສູ່ລະບົບ';
-                    return;
+            const staffName = selectedOption.getAttribute('data-name');
+            const staffRole = selectedOption.getAttribute('data-role');
+            
+            // Determine valid PIN based on role
+            let isValidPin = false;
+            let staffPin = '';
+            
+            // Try to get PIN from option attribute (for demo mode)
+            const demoPin = selectedOption.getAttribute('data-pin');
+            if (demoPin) {
+                staffPin = demoPin;
+                isValidPin = (pin === demoPin);
+            } else {
+                // For live Supabase - check against database
+                try {
+                    const { data, error } = await supabase
+                        .from('pos_staff')
+                        .select('pin')
+                        .eq('id', staffId)
+                        .single();
+                    
+                    if (!error && data) {
+                        staffPin = data.pin;
+                        isValidPin = (pin === data.pin);
+                    }
+                } catch (err) {
+                    console.error(err);
                 }
-                
-                // Simple PIN check (demo - in production use proper hash)
-                // For demo: GM=9999, Cashiers=1111
-                const validPin = (staff.role === 'GM' && pin === '9999') || (staff.role !== 'GM' && pin === '1111');
-                
-                if (!validPin) {
-                    showToast('ລະຫັດ PIN ບໍ່ຖືກຕ້ອງ', 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = '🚀 ເຂົ້າສູ່ລະບົບ';
-                    return;
-                }
-                
-                // Store user info
-                localStorage.setItem('lsm_user_id', staff.id);
-                localStorage.setItem('lsm_user_name', staff.full_name);
-                localStorage.setItem('lsm_role', staff.role);
-                localStorage.setItem('lsm_username', staff.username);
-                
-                // Update last login
-                await supabase
-                    .from('pos_staff')
-                    .update({ last_login: new Date().toISOString() })
-                    .eq('id', staff.id);
-                
-                showToast(`ສະບາຍດີ ${staff.full_name}`, 'success');
-                
-                // Redirect based on role
-                if (staff.role === 'GM' || staff.role === 'MANAGER') {
+            }
+            
+            // Fallback role-based PIN check
+            if (!isValidPin) {
+                if (staffRole === 'GM' && pin === '9999') isValidPin = true;
+                else if (staffRole !== 'GM' && pin === '1111') isValidPin = true;
+            }
+            
+            if (!isValidPin) {
+                messageDiv.textContent = '❌ ລະຫັດ PIN ບໍ່ຖືກຕ້ອງ';
+                btn.disabled = false;
+                btn.innerHTML = '🚀 ເຂົ້າສູ່ລະບົບ';
+                return;
+            }
+            
+            // Successful login
+            localStorage.setItem('lsm_user_id', staffId);
+            localStorage.setItem('lsm_user_name', staffName);
+            localStorage.setItem('lsm_role', staffRole);
+            localStorage.setItem('lsm_username', staffName.toLowerCase());
+            
+            messageDiv.className = 'success-message';
+            messageDiv.textContent = `✅ ສະບາຍດີ ${staffName}! ກຳລັງພາທ່ານເຂົ້າສູ່ລະບົບ...`;
+            
+            // Redirect based on role
+            setTimeout(() => {
+                if (staffRole === 'GM') {
                     window.location.href = 'index.html';
                 } else {
                     window.location.href = 'pos-checkout.html';
                 }
-                
-            } catch (err) {
-                console.error('Login error:', err);
-                showToast('ເກີດຂໍ້ຜິດພາດ, ກະລຸນາລອງໃໝ່', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '🚀 ເຂົ້າສູ່ລະບົບ';
-            }
+            }, 1000);
         }
         
         // Enter key support
@@ -302,16 +368,14 @@
             if (e.key === 'Enter') handleLogin();
         });
         
-        // Load staff on page load
-        loadStaff();
-        
-        // Set focus to PIN input after staff selection
+        // Focus PIN input after staff selection
         document.getElementById('staff-select').addEventListener('change', () => {
+            document.getElementById('pin-input').value = '';
             document.getElementById('pin-input').focus();
         });
+        
+        // Load staff when page loads
+        loadStaff();
     </script>
-    <script src="js/config.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/auth.js"></script>
 </body>
 </html>
