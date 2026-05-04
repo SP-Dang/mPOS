@@ -7,20 +7,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         :root {
             --primary: #10b981;
             --primary-dark: #059669;
             --primary-light: #d1fae5;
             --danger: #ef4444;
-            --danger-light: #fee2e2;
             --warning: #f59e0b;
-            --warning-light: #fef3c7;
             --sidebar: #0f172a;
             --bg: #f8fafc;
             --text: #1e293b;
@@ -38,7 +32,6 @@
             overflow: hidden;
         }
         
-        /* Sidebar */
         .sidebar {
             width: 260px;
             background: var(--sidebar);
@@ -59,10 +52,7 @@
             gap: 10px;
         }
         
-        .nav-menu {
-            flex: 1;
-            padding: 20px;
-        }
+        .nav-menu { flex: 1; padding: 20px; }
         
         .nav-item {
             display: flex;
@@ -73,37 +63,22 @@
             text-decoration: none;
             border-radius: 12px;
             margin-bottom: 8px;
-            transition: all 0.2s;
             font-weight: 600;
             font-size: 14px;
             cursor: pointer;
         }
         
-        .nav-item:hover {
-            background: rgba(255,255,255,0.05);
-            color: white;
-        }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+        .nav-item.active { background: var(--primary); color: white; }
         
-        .nav-item.active {
-            background: var(--primary);
-            color: white;
-        }
-        
-        /* Admin only class - hidden for cashiers */
-        .admin-only {
-            display: flex;
-        }
+        .admin-only { display: flex; }
         
         .user-info {
             padding: 20px;
             border-top: 1px solid rgba(255,255,255,0.1);
         }
         
-        .user-name {
-            font-weight: 600;
-            margin-bottom: 10px;
-            font-size: 13px;
-        }
+        .user-name { font-weight: 600; margin-bottom: 10px; font-size: 13px; }
         
         .logout-btn {
             background: rgba(239, 68, 68, 0.2);
@@ -120,12 +95,7 @@
             gap: 10px;
         }
         
-        /* Main Content */
-        .checkout-container {
-            flex: 1;
-            display: flex;
-            overflow: hidden;
-        }
+        .checkout-container { flex: 1; display: flex; overflow: hidden; }
         
         .cart-section {
             flex: 1;
@@ -144,25 +114,18 @@
             gap: 10px;
         }
         
-        .cart-header h1 {
-            font-size: 24px;
-            color: var(--text);
-        }
+        .cart-header h1 { font-size: 24px; color: var(--text); }
         
-        .barcode-input {
-            display: flex;
-            gap: 10px;
-        }
+        .barcode-input { display: flex; gap: 10px; }
         
         .barcode-input input {
             padding: 12px 16px;
             border: 2px solid var(--border);
             border-radius: 12px;
-            font-size: 14px;
+            font-size: 16px;
             width: 280px;
             outline: none;
             font-family: monospace;
-            font-size: 16px;
         }
         
         .barcode-input input:focus {
@@ -180,7 +143,6 @@
             font-weight: 600;
         }
         
-        /* Hold Bills Panel */
         .hold-panel {
             background: white;
             border-radius: 16px;
@@ -197,24 +159,9 @@
             margin-bottom: 10px;
         }
         
-        .hold-header h3 {
-            font-size: 13px;
-            color: var(--text-light);
-        }
+        .hold-header h3 { font-size: 13px; color: var(--text-light); }
         
-        .hold-header button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            color: var(--text-light);
-        }
-        
-        .hold-bills {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
+        .hold-bills { display: flex; gap: 8px; flex-wrap: wrap; }
         
         .hold-bill-item {
             background: var(--primary-light);
@@ -227,23 +174,8 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            transition: all 0.2s;
         }
         
-        .hold-bill-item:hover {
-            background: var(--primary);
-            color: white;
-        }
-        
-        .hold-bill-item .remove-hold {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-            color: inherit;
-        }
-        
-        /* Cart Table */
         .cart-table-container {
             flex: 1;
             overflow-y: auto;
@@ -252,10 +184,7 @@
             border: 1px solid var(--border);
         }
         
-        .cart-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+        .cart-table { width: 100%; border-collapse: collapse; }
         
         .cart-table th {
             padding: 15px;
@@ -264,31 +193,15 @@
             font-size: 12px;
             font-weight: 700;
             color: var(--text-light);
-            text-transform: uppercase;
             border-bottom: 1px solid var(--border);
         }
         
-        .cart-table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--border);
-        }
+        .cart-table td { padding: 12px 15px; border-bottom: 1px solid var(--border); }
         
-        .item-name {
-            font-weight: 700;
-            font-size: 14px;
-        }
+        .item-name { font-weight: 700; font-size: 14px; }
+        .item-barcode { font-size: 10px; color: var(--text-light); font-family: monospace; }
         
-        .item-barcode {
-            font-size: 10px;
-            color: var(--text-light);
-            font-family: monospace;
-        }
-        
-        .qty-control {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        .qty-control { display: flex; align-items: center; gap: 8px; }
         
         .qty-btn {
             width: 28px;
@@ -298,12 +211,6 @@
             background: white;
             cursor: pointer;
             font-weight: bold;
-            transition: all 0.2s;
-        }
-        
-        .qty-btn:hover {
-            background: var(--primary-light);
-            border-color: var(--primary);
         }
         
         .remove-btn {
@@ -314,7 +221,6 @@
             font-size: 18px;
         }
         
-        /* Summary Section */
         .summary-section {
             width: 360px;
             background: white;
@@ -348,10 +254,6 @@
             font-size: 14px;
         }
         
-        .loyalty-input:focus {
-            border-color: var(--primary);
-        }
-        
         .customer-info {
             margin-top: 10px;
             padding-top: 10px;
@@ -373,7 +275,6 @@
             background: white;
             cursor: pointer;
             font-weight: 700;
-            transition: all 0.2s;
             font-family: inherit;
         }
         
@@ -406,11 +307,7 @@
             border-top: 1px solid rgba(255,255,255,0.2);
         }
         
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
+        .action-buttons { display: flex; gap: 10px; margin-bottom: 10px; }
         
         .btn-hold {
             flex: 1;
@@ -421,7 +318,6 @@
             border-radius: 12px;
             font-weight: 700;
             cursor: pointer;
-            font-family: inherit;
         }
         
         .btn-clear {
@@ -433,7 +329,6 @@
             border-radius: 12px;
             font-weight: 700;
             cursor: pointer;
-            font-family: inherit;
         }
         
         .btn-complete {
@@ -446,21 +341,10 @@
             font-weight: 800;
             font-size: 16px;
             cursor: pointer;
-            font-family: inherit;
         }
         
-        .btn-complete:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+        .empty-cart { text-align: center; padding: 60px; color: var(--text-light); }
         
-        .empty-cart {
-            text-align: center;
-            padding: 60px;
-            color: var(--text-light);
-        }
-        
-        /* Animation */
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
@@ -499,7 +383,6 @@
             </div>
         </div>
         
-        <!-- Hold Bills Panel -->
         <div class="hold-panel" id="hold-panel">
             <div class="hold-header">
                 <h3>📋 ບິນທີ່ຖືໄວ້ (Hold Bills)</h3>
@@ -511,18 +394,10 @@
         <div class="cart-table-container">
             <table class="cart-table">
                 <thead>
-                    <tr>
-                        <th>ສິນຄ້າ</th>
-                        <th style="width: 100px;">ລາຄາ</th>
-                        <th style="width: 100px;">ຈຳນວນ</th>
-                        <th style="width: 100px;">ລວມ</th>
-                        <th style="width: 50px;"></th>
-                    </tr>
+                    <tr><th>ສິນຄ້າ</th><th>ລາຄາ</th><th>ຈຳນວນ</th><th>ລວມ</th><th></th></tr>
                 </thead>
                 <tbody id="cart-body">
-                    <tr>
-                        <td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td>
-                    </tr>
+                    <tr><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>
                 </tbody>
             </table>
         </div>
@@ -545,22 +420,9 @@
         </div>
         
         <div class="total-card">
-            <div class="total-row">
-                <span>ຍອດຍ່ອຍ</span>
-                <span id="subtotal-display">₭0</span>
-            </div>
-            <div class="total-row">
-                <span>ອາກອນ (7%)</span>
-                <span id="tax-display">₭0</span>
-            </div>
-            <div class="total-row" id="discount-row" style="display: none;">
-                <span>ສ່ວນຫຼຸດ</span>
-                <span id="discount-display">₭0</span>
-            </div>
-            <div class="grand-total">
-                <div>ຍອດລວມທັງໝົດ</div>
-                <div id="grand-total">₭0</div>
-            </div>
+            <div class="total-row"><span>ຍອດຍ່ອຍ</span><span id="subtotal-display">₭0</span></div>
+            <div class="total-row"><span>ອາກອນ (7%)</span><span id="tax-display">₭0</span></div>
+            <div class="grand-total"><div>ຍອດລວມທັງໝົດ</div><div id="grand-total">₭0</div></div>
         </div>
         
         <div class="action-buttons">
@@ -571,16 +433,12 @@
     </div>
 </div>
 
-<!-- ===================================================== -->
-<!-- SHARED JAVASCRIPT FILES (ORDER MATTERS!)              -->
-<!-- ===================================================== -->
+<!-- SHARED JAVASCRIPT FILES (ORDER MATTERS!) -->
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/auth.js"></script>
 
-<!-- ===================================================== -->
-<!-- PAGE-SPECIFIC JAVASCRIPT                              -->
-<!-- ===================================================== -->
+<!-- PAGE-SPECIFIC JAVASCRIPT -->
 <script>
 // =====================================================
 // POS CHECKOUT - PAGE SPECIFIC CODE
@@ -594,7 +452,7 @@ let holdBills = [];
 let appliedPoints = 0;
 let currentDiscount = 0;
 
-// Load hold bills from localStorage
+// Load hold bills
 function loadHoldBills() {
     const saved = localStorage.getItem('lsm_hold_bills');
     if (saved) {
@@ -637,19 +495,19 @@ function holdBill() {
         return;
     }
     
-    const name = prompt('ປ້ອນຊື່ລູກຄ້າ ຫຼື ເລກທີ່ບິນ:', `ບິນ ${holdBills.length + 1}`);
+    const name = prompt('ປ້ອນຊື່ລູກຄ້າ:', `ບິນ ${holdBills.length + 1}`);
     const { total } = calculateCartTotals(cart, window.TAX_RATE || 7);
     
     holdBills.push({
         id: Date.now(),
         name: name || `ບິນ ${holdBills.length + 1}`,
         cart: JSON.parse(JSON.stringify(cart)),
-        total: total,
-        createdAt: new Date().toISOString()
+        total: total
     });
     
     saveHoldBills();
-    clearCartSilent();
+    cart = [];
+    drawCart();
     showToast(`ຖືບິນ "${name}" ສຳເລັດ`, 'success');
 }
 
@@ -657,42 +515,23 @@ function loadHoldBill(index) {
     const bill = holdBills[index];
     if (!bill) return;
     
-    if (cart.length > 0) {
-        if (confirm('ທ່ານມີລາຍການທີ່ຍັງບໍ່ທັນສຳເລັດ. ຕ້ອງການຍົກເລີກ ແລະ ໂຫຼດບິນທີ່ຖືໄວ້?')) {
-            loadBillData(bill, index);
-        }
-    } else {
-        loadBillData(bill, index);
-    }
-}
-
-function loadBillData(bill, index) {
+    if (cart.length > 0 && !confirm('ຕ້ອງການໂຫຼດບິນທີ່ຖືໄວ້?')) return;
+    
     cart = JSON.parse(JSON.stringify(bill.cart));
-    selectedCustomer = bill.customer || null;
-    paymentMethod = bill.paymentMethod || "Cash";
-    
     drawCart();
-    updatePaymentMethodUI();
-    
-    if (selectedCustomer) {
-        document.getElementById('customer-phone').value = selectedCustomer.phone;
-        displayCustomerInfo(selectedCustomer);
-    }
-    
     holdBills.splice(index, 1);
     saveHoldBills();
     showToast(`ໂຫຼດບິນ "${bill.name}" ສຳເລັດ`, 'success');
 }
 
 function removeHoldBill(index) {
-    if (confirm('ຕ້ອງການລຶບບິນທີ່ຖືໄວ້ນີ້?')) {
+    if (confirm('ຕ້ອງການລຶບບິນນີ້?')) {
         holdBills.splice(index, 1);
         saveHoldBills();
         showToast('ລຶບສຳເລັດ', 'success');
     }
 }
 
-// Calculate totals using shared utility
 function calculateTotals() {
     return calculateCartTotals(cart, window.TAX_RATE || 7);
 }
@@ -701,16 +540,8 @@ function updateTotals() {
     const { subtotal, tax, total } = calculateTotals();
     document.getElementById('subtotal-display').innerHTML = formatLAK(subtotal);
     document.getElementById('tax-display').innerHTML = formatLAK(tax);
-    
     const finalTotal = total - currentDiscount;
     document.getElementById('grand-total').innerHTML = formatLAK(finalTotal);
-    
-    if (currentDiscount > 0) {
-        document.getElementById('discount-row').style.display = 'flex';
-        document.getElementById('discount-display').innerHTML = `-${formatLAK(currentDiscount)}`;
-    } else {
-        document.getElementById('discount-row').style.display = 'none';
-    }
 }
 
 function drawCart() {
@@ -724,21 +555,12 @@ function drawCart() {
     
     tbody.innerHTML = cart.map((item, idx) => `
         <tr>
-            <td>
-                <div class="item-name">${item.name}</div>
-                <div class="item-barcode">${item.barcode}</div>
-            </td>
+            <td><div class="item-name">${item.name}</div><div class="item-barcode">${item.barcode}</div></td>
             <td>${formatLAK(item.retail_price)}</td>
-            <td>
-                <div class="qty-control">
-                    <button class="qty-btn" onclick="adjustQuantity(${idx}, -1)">-</button>
-                    <span style="min-width: 30px; text-align: center;">${item.qty}</span>
-                    <button class="qty-btn" onclick="adjustQuantity(${idx}, 1)">+</button>
-                </div>
-            </td>
-            <td style="font-weight: 700;">${formatLAK(item.retail_price * item.qty)}</td>
+            <td><div class="qty-control"><button class="qty-btn" onclick="adjustQuantity(${idx}, -1)">-</button><span>${item.qty}</span><button class="qty-btn" onclick="adjustQuantity(${idx}, 1)">+</button></div></td>
+            <td>${formatLAK(item.retail_price * item.qty)}</td>
             <td><button class="remove-btn" onclick="removeItem(${idx})">🗑️</button></td>
-        </table>
+        </tr>
     `).join('');
     
     updateTotals();
@@ -750,12 +572,10 @@ function adjustQuantity(idx, delta) {
         removeItem(idx);
         return;
     }
-    
     if (delta > 0 && newQty > cart[idx].stock_qty) {
-        showToast(`ສິນຄ້າເຫຼືອພຽງ ${cart[idx].stock_qty} ຊິ້ນ`, 'warning');
+        showToast(`ເຫຼືອພຽງ ${cart[idx].stock_qty} ຊິ້ນ`, 'warning');
         return;
     }
-    
     cart[idx].qty = newQty;
     drawCart();
 }
@@ -767,28 +587,18 @@ function removeItem(idx) {
 
 function clearCart() {
     if (cart.length === 0) return;
-    if (confirm('ຕ້ອງການລຶບສິນຄ້າທັງໝົດໃນລາຍການ?')) {
-        clearCartSilent();
-        showToast('ລຶບລາຍການທັງໝົດສຳເລັດ', 'info');
+    if (confirm('ລຶບສິນຄ້າທັງໝົດ?')) {
+        cart = [];
+        drawCart();
+        showToast('ລຶບສຳເລັດ', 'info');
     }
 }
 
-function clearCartSilent() {
-    cart = [];
-    selectedCustomer = null;
-    appliedPoints = 0;
-    currentDiscount = 0;
-    document.getElementById('customer-phone').value = '';
-    document.getElementById('customer-info').style.display = 'none';
-    drawCart();
-}
-
-// Search product from Supabase (using shared supabase client)
 async function searchProduct(barcode) {
-    if (!barcode.trim()) return false;
+    if (!barcode.trim()) return;
     
     try {
-        const { data, error } = await supabase
+        const { data, error } = await window.supabaseClient
             .from('pos_products')
             .select('*')
             .eq('barcode', barcode.trim())
@@ -796,41 +606,29 @@ async function searchProduct(barcode) {
         
         if (error || !data) {
             showToast('ບໍ່ພົບສິນຄ້າ!', 'error');
-            return false;
+            return;
         }
         
-        // Check if already in cart
         const existing = cart.find(i => i.barcode === data.barcode);
         if (existing) {
             if (existing.qty + 1 > data.stock_qty) {
-                showToast(`ສິນຄ້າເຫຼືອພຽງ ${data.stock_qty} ຊິ້ນ`, 'warning');
-                return true;
+                showToast(`ເຫຼືອພຽງ ${data.stock_qty} ຊິ້ນ`, 'warning');
+                return;
             }
             existing.qty++;
         } else {
-            cart.push({ 
-                id: data.id,
-                barcode: data.barcode, 
-                name: data.name, 
-                retail_price: data.retail_price, 
-                stock_qty: data.stock_qty,
-                qty: 1 
-            });
+            cart.push({ ...data, qty: 1 });
         }
-        
         drawCart();
         showToast(`ເພີ່ມ ${data.name} ສຳເລັດ`, 'success');
-        return true;
-        
     } catch (err) {
         console.error(err);
         showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
-        return false;
     }
 }
 
 function manualSearch() {
-    const barcode = prompt('ປ້ອນບາໂຄດສິນຄ້າ:');
+    const barcode = prompt('ປ້ອນບາໂຄດສິນຄ້າ (1001, 1002, 1003, 1007):');
     if (barcode) {
         searchProduct(barcode);
         document.getElementById('barcode-input').value = '';
@@ -838,7 +636,6 @@ function manualSearch() {
     }
 }
 
-// Barcode input handler
 document.getElementById('barcode-input').addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
         await searchProduct(e.target.value);
@@ -846,10 +643,8 @@ document.getElementById('barcode-input').addEventListener('keypress', async (e) 
     }
 });
 
-// Search customer
 async function searchCustomer() {
     const phone = document.getElementById('customer-phone').value.trim();
-    
     if (phone.length < 10) {
         document.getElementById('customer-info').style.display = 'none';
         selectedCustomer = null;
@@ -857,7 +652,7 @@ async function searchCustomer() {
     }
     
     try {
-        const { data, error } = await supabase
+        const { data, error } = await window.supabaseClient
             .from('pos_customers')
             .select('*')
             .eq('phone', phone)
@@ -865,7 +660,9 @@ async function searchCustomer() {
         
         if (data) {
             selectedCustomer = data;
-            displayCustomerInfo(data);
+            document.getElementById('customer-name').innerHTML = `👤 ${data.name}`;
+            document.getElementById('customer-points').innerText = data.points || 0;
+            document.getElementById('customer-info').style.display = 'block';
         } else {
             selectedCustomer = null;
             document.getElementById('customer-info').style.display = 'none';
@@ -875,30 +672,23 @@ async function searchCustomer() {
     }
 }
 
-function displayCustomerInfo(customer) {
-    document.getElementById('customer-name').innerHTML = `👤 ${customer.name}`;
-    document.getElementById('customer-points').innerText = (customer.points || 0).toLocaleString();
-    document.getElementById('customer-info').style.display = 'block';
-}
-
-// Apply loyalty points
 async function applyPoints() {
     if (!selectedCustomer) {
-        showToast('ກະລຸນາເລືອກລູກຄ້າສະມາຊິກກ່ອນ', 'warning');
+        showToast('ກະລຸນາເລືອກລູກຄ້າກ່ອນ', 'warning');
         return;
     }
     
     const { subtotal, tax } = calculateTotals();
-    const pointsValue = 1000; // 1 point = 1000 LAK
+    const pointsValue = 1000;
     const maxPointsValue = Math.floor((subtotal + tax) / pointsValue);
     const availablePoints = Math.min(selectedCustomer.points, maxPointsValue);
     
     if (availablePoints <= 0) {
-        showToast('ຄະແນນບໍ່ພຽງພໍສຳລັບການຫຼຸດລາຄາ', 'warning');
+        showToast('ຄະແນນບໍ່ພຽງພໍ', 'warning');
         return;
     }
     
-    const pointsToUse = prompt(`ທ່ານມີ ${selectedCustomer.points} ຄະແນນ. ຕ້ອງການໃຊ້ຈັກຄະແນນ? (ສູງສຸດ ${availablePoints})`, availablePoints);
+    const pointsToUse = prompt(`ມີ ${selectedCustomer.points} ຄະແນນ. ໃຊ້ຈັກຄະແນນ? (ສູງສຸດ ${availablePoints})`, availablePoints);
     
     if (pointsToUse && !isNaN(pointsToUse) && pointsToUse > 0) {
         const usePoints = Math.min(parseInt(pointsToUse), availablePoints);
@@ -909,26 +699,15 @@ async function applyPoints() {
     }
 }
 
-// Set payment method
 function setPaymentMethod(method, btnElement) {
     paymentMethod = method;
     document.querySelectorAll('.pay-btn').forEach(btn => btn.classList.remove('active'));
     btnElement.classList.add('active');
-    showToast(`ເລືອກຊຳລະດ້ວຍ ${method}`, 'info');
 }
 
-function updatePaymentMethodUI() {
-    document.querySelectorAll('.pay-btn').forEach(btn => {
-        if (btn.innerText.includes(paymentMethod)) {
-            btn.classList.add('active');
-        }
-    });
-}
-
-// Process sale
 async function processSale() {
     if (cart.length === 0) {
-        showToast('ກະລຸນາເພີ່ມສິນຄ້າກ່ອນ', 'warning');
+        showToast('ກະລຸນາເພີ່ມສິນຄ້າ', 'warning');
         return;
     }
     
@@ -940,92 +719,33 @@ async function processSale() {
         const { subtotal, tax, total } = calculateTotals();
         const finalTotal = total - currentDiscount;
         const cashierName = getCurrentUser().name || 'Cashier';
-        const pointsEarned = Math.floor(finalTotal / (window.POINTS_RATE || 10000));
         
-        // For cash payment, show change dialog
         if (paymentMethod === 'Cash') {
-            const received = prompt(`ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ລູກຄ້າໃຫ້ມາ:`, Math.ceil(finalTotal / 1000) * 1000);
-            if (received === null) {
+            const received = prompt(`ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, Math.ceil(finalTotal / 1000) * 1000);
+            if (!received) {
                 btn.disabled = false;
                 btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
                 return;
             }
-            const cashReceived = parseFloat(received);
-            if (isNaN(cashReceived)) {
-                showToast('ກະລຸນາປ້ອນຈຳນວນເງິນ', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-                return;
-            }
-            const change = cashReceived - finalTotal;
+            const change = parseFloat(received) - finalTotal;
             if (change < 0) {
                 showToast('ເງິນບໍ່ພໍ!', 'error');
                 btn.disabled = false;
                 btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
                 return;
             }
-            if (change > 0) {
-                alert(`ເງິນທອນ: ${formatLAK(change)}`);
-            }
+            if (change > 0) alert(`ເງິນທອນ: ${formatLAK(change)}`);
         }
         
-        // Verify stock before processing
         for (const item of cart) {
-            const { data: currentStock } = await supabase
+            await window.supabaseClient
                 .from('pos_products')
-                .select('stock_qty')
-                .eq('barcode', item.barcode)
-                .single();
-            
-            if (!currentStock || currentStock.stock_qty < item.qty) {
-                showToast(`${item.name} ມີເຫຼືອພຽງ ${currentStock?.stock_qty || 0} ຊິ້ນ`, 'error');
-                btn.disabled = false;
-                btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-                return;
-            }
-        }
-        
-        // Deduct inventory
-        for (const item of cart) {
-            const newStock = item.stock_qty - item.qty;
-            await supabase
-                .from('pos_products')
-                .update({ stock_qty: newStock, last_updated: new Date().toISOString() })
+                .update({ stock_qty: item.stock_qty - item.qty })
                 .eq('barcode', item.barcode);
         }
         
-        // Save sale to Supabase
         const orderId = 'ORD-' + Date.now().toString().slice(-8);
-        const { error: saleError } = await supabase
-            .from('pos_sales')
-            .insert([{
-                items: cart,
-                total_amount: finalTotal,
-                payment_method: paymentMethod,
-                customer_phone: selectedCustomer?.phone || null,
-                status: 'COMPLETED'
-            }]);
-        
-        if (saleError) {
-            console.error('Sale save error:', saleError);
-        }
-        
-        // Update customer points if applicable
-        if (selectedCustomer) {
-            const newPoints = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
-            await supabase
-                .from('pos_customers')
-                .update({ 
-                    points: newPoints,
-                    total_spent: (selectedCustomer.total_spent || 0) + finalTotal
-                })
-                .eq('phone', selectedCustomer.phone);
-        }
-        
-        // Build receipt
-        let receiptItems = cart.map(item => `${item.name} x${item.qty} = ${formatLAK(item.retail_price * item.qty)}`).join('\n');
-        
-        const receipt = `
+        alert(`
 ═══════════════════════
         ໃບຮັບເງິນ
 ═══════════════════════
@@ -1033,32 +753,23 @@ async function processSale() {
 ວັນທີ: ${new Date().toLocaleString('lo-LA')}
 ພະນັກງານ: ${cashierName}
 ═══════════════════════
-${receiptItems}
+${cart.map(item => `${item.name} x${item.qty} = ${formatLAK(item.retail_price * item.qty)}`).join('\n')}
 ═══════════════════════
 ຍອດຍ່ອຍ: ${formatLAK(subtotal)}
 ອາກອນ (7%): ${formatLAK(tax)}
-${currentDiscount > 0 ? `ສ່ວນຫຼຸດ: -${formatLAK(currentDiscount)}\n` : ''}
 ຍອດລວມ: ${formatLAK(finalTotal)}
 ຊຳລະດ້ວຍ: ${paymentMethod}
 ═══════════════════════
-ຄະແນນທີ່ໄດ້ຮັບ: +${pointsEarned}
-═══════════════════════
 ຂອບໃຈທີ່ໃຊ້ບໍລິການ!
-LSM POS
-        `;
+        `);
         
-        alert(receipt);
-        
-        // Clear cart
-        clearCartSilent();
-        appliedPoints = 0;
-        currentDiscount = 0;
-        
+        cart = [];
+        drawCart();
         showToast(`ຊຳລະສຳເລັດ! ${formatLAK(finalTotal)}`, 'success');
         
     } catch (err) {
-        console.error('Sale error:', err);
-        showToast('ເກີດຂໍ້ຜິດພາດ, ກະລຸນາລອງໃໝ່', 'error');
+        console.error(err);
+        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
@@ -1066,31 +777,17 @@ LSM POS
     }
 }
 
-// Event listeners
 document.getElementById('customer-phone').addEventListener('input', searchCustomer);
 
-// Initialize page
 function init() {
-    // Check authentication
     if (!checkAuth()) return;
-    
-    // Display user name
     displayUserName();
-    
-    // Setup role-based menu hiding
     setupRoleBasedMenus();
-    
-    // Load hold bills
     loadHoldBills();
-    
-    // Draw cart
     drawCart();
-    
-    // Focus on barcode input
     document.getElementById('barcode-input').focus();
 }
 
-// Start the app
 init();
 </script>
 </body>
