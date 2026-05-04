@@ -346,7 +346,7 @@
         
         .empty-cart { text-align: center; padding: 60px; color: var(--text-light); }
         
-        /* Print Styles for Receipt */
+        /* Print Styles for Thermal Receipt */
         @media print {
             body * { visibility: hidden; }
             .receipt-print, .receipt-print * { visibility: visible; }
@@ -354,12 +354,21 @@
                 position: absolute;
                 left: 0;
                 top: 0;
-                width: 80mm;
-                padding: 10px;
-                font-size: 12px;
-                font-family: 'Phetsarath', monospace;
+                width: 72mm;
+                padding: 3mm;
+                margin: 0;
+                font-family: 'Courier New', 'Phetsarath', monospace;
+                font-size: 11px;
+                line-height: 1.3;
+                color: black;
             }
-            .no-print { display: none; }
+            @page {
+                size: 72mm auto;
+                margin: 0mm;
+            }
+            @page :header { display: none; }
+            @page :footer { display: none; }
+            .receipt-print { page-break-after: avoid; page-break-inside: avoid; }
         }
         
         @keyframes slideIn {
@@ -437,7 +446,7 @@
         </div>
         
         <div class="total-card">
-            <div class="total-row"><span>ຍອດຍ່ອຍ</span><span id="subtotal-display">₭0</span></div>
+            <div class="total-row"><span>ເປັນເງິນ</span><span id="subtotal-display">₭0</span></div>
             <div class="total-row"><span>ອາກອນ (7%)</span><span id="tax-display">₭0</span></div>
             <div class="total-row" id="discount-row" style="display: none;"><span>ສ່ວນຫຼຸດ</span><span id="discount-display">₭0</span></div>
             <div class="grand-total"><div>ຍອດລວມທັງໝົດ</div><div id="grand-total">₭0</div></div>
@@ -455,7 +464,7 @@
 <div id="receipt-template" style="display: none;">
     <div class="receipt-print" style="text-align: center; font-family: monospace;">
         <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
-            <h3 style="margin: 0; font-size: 16px;">mPOS RECEIPT</h3>
+            <h3 style="margin: 0; font-size: 16px;">ໃບຮັບເງິນ | RECEIPT</h3>
             <p style="margin: 2px 0; font-size: 10px;">ໂທ: 02055348882</p>
             <p style="margin: 2px 0; font-size: 10px;" id="receipt-datetime"></p>
         </div>
@@ -463,6 +472,7 @@
         <div style="margin-bottom: 8px;">
             <div id="receipt-customer-info" style="font-size: 10px; margin-bottom: 5px;"></div>
             <div>ເລກທີບິນ: <b id="receipt-order-id"></b></div>
+            <div style="font-size: 7px; color: #666;" id="receipt-full-id"></div>
         </div>
         
         <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 5px 0; margin: 5px 0;">
@@ -479,7 +489,7 @@
         
         <div style="border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px; font-size: 9px; text-align: center;">
             ຂອບໃຈທີ່ໃຊ້ບໍລິການ<br>
-            Powered by LSM POS
+            Powered by ສົມພອນ 02055348882
         </div>
     </div>
 </div>
@@ -492,7 +502,7 @@
 <!-- PAGE-SPECIFIC JAVASCRIPT -->
 <script>
 // =====================================================
-// POS CHECKOUT - WITH BARCODE RECEIPT
+// POS CHECKOUT - WITH REAL SUPABASE UUID ON RECEIPT
 // =====================================================
 
 // State variables
@@ -618,7 +628,7 @@ function drawCart() {
             <td><div class="qty-control"><button class="qty-btn" onclick="adjustQuantity(${idx}, -1)">-</button><span>${item.qty}</span><button class="qty-btn" onclick="adjustQuantity(${idx}, 1)">+</button></div></td>
             <td>${formatLAK(item.retail_price * item.qty)}</td>
             <td><button class="remove-btn" onclick="removeItem(${idx})">🗑️</button></td>
-        </tr>
+        </table>
     `).join('');
     
     updateTotals();
@@ -763,15 +773,16 @@ function setPaymentMethod(method, btnElement) {
     btnElement.classList.add('active');
 }
 
-// Print receipt with barcode
-function printReceipt(orderId, subtotal, tax, finalTotal, pointsEarned, newPointsTotal) {
+// Print receipt with REAL Supabase UUID
+function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, pointsEarned, newPointsTotal) {
     const now = new Date();
     const dateStr = now.toLocaleDateString('lo-LA');
     const timeStr = now.toLocaleTimeString('lo-LA');
     
     // Set receipt data
     document.getElementById('receipt-datetime').innerHTML = `${dateStr} ${timeStr}`;
-    document.getElementById('receipt-order-id').innerHTML = orderId;
+    document.getElementById('receipt-order-id').innerHTML = shortOrderId;
+    document.getElementById('receipt-full-id').innerHTML = `ID: ${fullOrderId}`;
     
     // Customer info
     let customerHtml = '';
@@ -795,7 +806,7 @@ function printReceipt(orderId, subtotal, tax, finalTotal, pointsEarned, newPoint
     // Totals
     let totalsHtml = `
         <div style="display: flex; justify-content: space-between;">
-            <span>ຍອດຍ່ອຍ:</span><span>${formatLAK(subtotal)}</span>
+            <span>ເປັນເງິນ:</span><span>${formatLAK(subtotal)}</span>
         </div>
         <div style="display: flex; justify-content: space-between;">
             <span>ອາກອນ (7%):</span><span>${formatLAK(tax)}</span>
@@ -830,8 +841,8 @@ function printReceipt(orderId, subtotal, tax, finalTotal, pointsEarned, newPoint
     }
     document.getElementById('receipt-points-info').innerHTML = pointsHtml;
     
-    // Generate barcode from order ID
-    JsBarcode("#receipt-barcode", orderId, {
+    // Generate barcode from SHORT order ID (8 digits)
+    JsBarcode("#receipt-barcode", shortOrderId, {
         format: "CODE128",
         width: 1.5,
         height: 35,
@@ -861,7 +872,6 @@ function printReceipt(orderId, subtotal, tax, finalTotal, pointsEarned, newPoint
                         line-height: 1.4;
                     }
                     .receipt-print { width: 100%; }
-                    .divider { border-top: 1px dashed #000; margin: 5px 0; }
                 </style>
             </head>
             <body>${printContent.outerHTML}</body>
@@ -887,7 +897,6 @@ async function processSale() {
         const finalTotal = total - currentDiscount;
         const cashierName = getCurrentUser().name || 'Cashier';
         const pointsEarned = Math.floor(finalTotal / (window.POINTS_RATE || 10000));
-        const orderId = 'LSM' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 1000);
         
         // Cash payment change calculation
         if (paymentMethod === 'Cash') {
@@ -930,8 +939,8 @@ async function processSale() {
                 .eq('phone', selectedCustomer.phone);
         }
         
-        // Save sale to database
-        await window.supabaseClient
+        // Save sale to Supabase and GET THE ACTUAL UUID BACK
+        const { data: saleData, error: saleError } = await window.supabaseClient
             .from('pos_sales')
             .insert([{
                 items: cart,
@@ -939,10 +948,20 @@ async function processSale() {
                 payment_method: paymentMethod,
                 customer_phone: selectedCustomer?.phone || null,
                 status: 'COMPLETED'
-            }]);
+            }])
+            .select();  // This returns the inserted record with the real UUID
         
-        // Print receipt with barcode
-        printReceipt(orderId, subtotal, tax, finalTotal, pointsEarned, newPointsTotal);
+        if (saleError) {
+            console.error('Sale save error:', saleError);
+            throw saleError;
+        }
+        
+        // Get the actual Supabase UUID (first 8 characters for display)
+        const fullOrderId = saleData[0].id;
+        const shortOrderId = fullOrderId.substring(0, 8).toUpperCase();
+        
+        // Print receipt with REAL Supabase ID
+        printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, pointsEarned, newPointsTotal);
         
         // Clear cart
         cart = [];
@@ -953,7 +972,7 @@ async function processSale() {
         document.getElementById('customer-info').style.display = 'none';
         drawCart();
         
-        showToast(`ຊຳລະສຳເລັດ! ${formatLAK(finalTotal)}`, 'success');
+        showToast(`ຊຳລະສຳເລັດ! ເລກທີບິນ: ${shortOrderId}`, 'success');
         
     } catch (err) {
         console.error(err);
@@ -965,6 +984,36 @@ async function processSale() {
     }
 }
 
+// Search function for order history (can be used in pos-orders.html)
+async function searchOrderByShortId(shortId) {
+    if (!shortId || shortId.length < 4) {
+        showToast('ກະລຸນາປ້ອນເລກທີບິນຢ່າງນ້ອຍ 4 ຕົວ', 'warning');
+        return null;
+    }
+    
+    const { data, error } = await window.supabaseClient
+        .from('pos_sales')
+        .select('*')
+        .ilike('id', `${shortId}%`)
+        .order('created_at', { ascending: false });
+    
+    if (error) {
+        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
+        return null;
+    }
+    
+    if (data.length === 0) {
+        showToast('ບໍ່ພົບບິນ', 'warning');
+        return null;
+    }
+    
+    return data;
+}
+
+// Make search function available globally for other pages
+window.searchOrderByShortId = searchOrderByShortId;
+
+// Event listeners
 document.getElementById('customer-phone').addEventListener('input', searchCustomer);
 
 function init() {
