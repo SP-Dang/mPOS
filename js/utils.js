@@ -1,11 +1,11 @@
 // =====================================================
-// mPOS - SHARED UTILITIES
+// LSM POS - SHARED UTILITIES
 // =====================================================
 
 // Format currency in Lao Kip
 function formatLAK(amount) {
     if (isNaN(amount) || amount === undefined || amount === null) return '₭0';
-    return new Intl.NumberFormat('lo-LA').format(amount) + ' ₭';
+    return new Intl.NumberFormat('lo-LA').format(Math.round(amount)) + ' ₭';
 }
 
 // Show toast notification
@@ -36,7 +36,7 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// Calculate totals (reusable)
+// Calculate cart totals
 function calculateCartTotals(cart, taxRate = 7) {
     const subtotal = cart.reduce((sum, item) => sum + (item.retail_price * item.qty), 0);
     const tax = subtotal * taxRate / 100;
