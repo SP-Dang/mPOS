@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LSM POS | ເຂົ້າສູ່ລະບົບ</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Plus Jakarta Sans', 'Phetsarath', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+        }
+        
+        .login-card {
+            background: white;
+            border-radius: 32px;
+            padding: 40px 35px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            animation: fadeInUp 0.5s ease;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo-icon {
+            font-size: 48px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            width: 70px;
+            height: 70px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+        }
+        
+        .logo h1 {
+            font-size: 28px;
+            color: #1e293b;
+            margin-bottom: 5px;
+        }
+        
+        .logo p {
+            color: #64748b;
+            font-size: 13px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            font-size: 16px;
+            font-family: inherit;
+            transition: all 0.3s;
+            outline: none;
+        }
+        
+        .input-group input:focus,
+        .input-group select:focus {
+            border-color: #10b981;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        }
+        
+        .pin-input {
+            text-align: center;
+            letter-spacing: 8px;
+            font-size: 24px;
+            font-weight: 800;
+        }
+        
+        .btn-login {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+            margin-top: 10px;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #f1f5f9;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .staff-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo">
+                <div class="logo-icon">⚡</div>
+                <h1>LSM POS</h1>
+                <p>ລະບົບຂາຍໜ້າຮ້ານອັດສະລິຍະ</p>
+            </div>
+            
+            <div class="input-group">
+                <label>👤 ເລືອກຊື່ພະນັກງານ</label>
+                <select id="staff-select">
+                    <option value="">-- ກຳລັງໂຫຼດ... --</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label>🔒 ລະຫັດ PIN (4 ຕົວເລກ)</label>
+                <input type="password" id="pin-input" class="pin-input" maxlength="4" inputmode="numeric" placeholder="••••">
+            </div>
+            
+            <button class="btn-login" id="login-btn">
+                <span>🚀</span> ເຂົ້າສູ່ລະບົບ
+            </button>
+            
+            <div class="footer">
+                <p>Powered by LSM Retail | ສົມພອນ 02055348882</p>
+                <p style="margin-top: 5px; font-size: 10px;">v2.0 Production</p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script>
+        const supabase = supabase.createClient(AppConfig.SUPABASE_URL, AppConfig.SUPABASE_KEY);
+        
+        // Load staff list
+        async function loadStaff() {
+            try {
+                const { data, error } = await supabase
+                    .from('pos_staff')
+                    .select('username, full_name, role')
+                    .eq('is_active', true)
+                    .order('full_name');
+                
+                if (error) throw error;
+                
+                const select = document.getElementById('staff-select');
+                select.innerHTML = '<option value="">-- ເລືອກຊື່ພະນັກງານ --</option>';
+                
+                data.forEach(staff => {
+                    const option = document.createElement('option');
+                    option.value = staff.username;
+                    option.textContent = `${staff.full_name} (${staff.role === 'GM' ? 'ຜູ້ຈັດການ' : 'ເຄື່ອງ'})`;
+                    select.appendChild(option);
+                });
+            } catch (err) {
+                console.error('Error loading staff:', err);
+                showToast('ບໍ່ສາມາດໂຫຼດຂໍ້ມູນພະນັກງານໄດ້', 'error');
+            }
+        }
+        
+        // Handle login
+        async function handleLogin() {
+            const username = document.getElementById('staff-select').value;
+            const pin = document.getElementById('pin-input').value.trim();
+            const btn = document.getElementById('login-btn');
+            
+            if (!username) {
+                showToast('ກະລຸນາເລືອກຊື່ພະນັກງານ', 'warning');
+                return;
+            }
+            
+            if (!pin || pin.length !== 4) {
+                showToast('ກະລຸນາປ້ອນ PIN 4 ຕົວເລກ', 'warning');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '⏳ ກຳລັງກວດສອບ...';
+            
+            try {
+                // Get staff record
+                const { data: staff, error } = await supabase
+                    .from('pos_staff')
+                    .select('id, username, full_name, role, pin_hash')
+                    .eq('username', username)
+                    .single();
+                
+                if (error || !staff) {
+                    showToast('ບໍ່ພົບຂໍ້ມູນພະນັກງານ', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '🚀 ເຂົ້າສູ່ລະບົບ';
+                    return;
+                }
+                
+                // Simple PIN check (demo - in production use proper hash)
+                // For demo: GM=9999, Cashiers=1111
+                const validPin = (staff.role === 'GM' && pin === '9999') || (staff.role !== 'GM' && pin === '1111');
+                
+                if (!validPin) {
+                    showToast('ລະຫັດ PIN ບໍ່ຖືກຕ້ອງ', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '🚀 ເຂົ້າສູ່ລະບົບ';
+                    return;
+                }
+                
+                // Store user info
+                localStorage.setItem('lsm_user_id', staff.id);
+                localStorage.setItem('lsm_user_name', staff.full_name);
+                localStorage.setItem('lsm_role', staff.role);
+                localStorage.setItem('lsm_username', staff.username);
+                
+                // Update last login
+                await supabase
+                    .from('pos_staff')
+                    .update({ last_login: new Date().toISOString() })
+                    .eq('id', staff.id);
+                
+                showToast(`ສະບາຍດີ ${staff.full_name}`, 'success');
+                
+                // Redirect based on role
+                if (staff.role === 'GM' || staff.role === 'MANAGER') {
+                    window.location.href = 'index.html';
+                } else {
+                    window.location.href = 'pos-checkout.html';
+                }
+                
+            } catch (err) {
+                console.error('Login error:', err);
+                showToast('ເກີດຂໍ້ຜິດພາດ, ກະລຸນາລອງໃໝ່', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '🚀 ເຂົ້າສູ່ລະບົບ';
+            }
+        }
+        
+        // Enter key support
+        document.getElementById('pin-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleLogin();
+        });
+        
+        // Load staff on page load
+        loadStaff();
+        
+        // Set focus to PIN input after staff selection
+        document.getElementById('staff-select').addEventListener('change', () => {
+            document.getElementById('pin-input').focus();
+        });
+    </script>
+</body>
+</html>
