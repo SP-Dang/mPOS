@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>mPOS | ຂາຍສິນຄ້າ</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -345,6 +346,22 @@
         
         .empty-cart { text-align: center; padding: 60px; color: var(--text-light); }
         
+        /* Print Styles for Receipt */
+        @media print {
+            body * { visibility: hidden; }
+            .receipt-print, .receipt-print * { visibility: visible; }
+            .receipt-print {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 80mm;
+                padding: 10px;
+                font-size: 12px;
+                font-family: 'Phetsarath', monospace;
+            }
+            .no-print { display: none; }
+        }
+        
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
@@ -409,7 +426,7 @@
             <input type="text" id="customer-phone" class="loyalty-input" placeholder="020xxxxxxxx">
             <div id="customer-info" style="display: none;" class="customer-info">
                 <div id="customer-name"></div>
-                <div>⭐ ຄະແນນ: <span id="customer-points">0</span></div>
+                <div>⭐ ຄະແນນປະຈຸບັນ: <span id="customer-points">0</span></div>
                 <button onclick="applyPoints()" style="margin-top: 8px; padding: 5px 10px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 11px;">ໃຊ້ຄະແນນ</button>
             </div>
         </div>
@@ -422,6 +439,7 @@
         <div class="total-card">
             <div class="total-row"><span>ຍອດຍ່ອຍ</span><span id="subtotal-display">₭0</span></div>
             <div class="total-row"><span>ອາກອນ (7%)</span><span id="tax-display">₭0</span></div>
+            <div class="total-row" id="discount-row" style="display: none;"><span>ສ່ວນຫຼຸດ</span><span id="discount-display">₭0</span></div>
             <div class="grand-total"><div>ຍອດລວມທັງໝົດ</div><div id="grand-total">₭0</div></div>
         </div>
         
@@ -433,7 +451,40 @@
     </div>
 </div>
 
-<!-- SHARED JAVASCRIPT FILES (ORDER MATTERS!) -->
+<!-- Hidden Receipt Template for Printing -->
+<div id="receipt-template" style="display: none;">
+    <div class="receipt-print" style="text-align: center; font-family: monospace;">
+        <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
+            <h3 style="margin: 0; font-size: 16px;">mPOS RECEIPT</h3>
+            <p style="margin: 2px 0; font-size: 10px;">ໂທ: 02055348882</p>
+            <p style="margin: 2px 0; font-size: 10px;" id="receipt-datetime"></p>
+        </div>
+        
+        <div style="margin-bottom: 8px;">
+            <div id="receipt-customer-info" style="font-size: 10px; margin-bottom: 5px;"></div>
+            <div>ເລກທີບິນ: <b id="receipt-order-id"></b></div>
+        </div>
+        
+        <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 5px 0; margin: 5px 0;">
+            <div id="receipt-items-list"></div>
+        </div>
+        
+        <div id="receipt-totals" style="margin: 5px 0;"></div>
+        
+        <div id="receipt-points-info" style="font-size: 10px; margin: 5px 0;"></div>
+        
+        <div style="text-align: center; margin: 8px 0;">
+            <svg id="receipt-barcode" width="140" height="35"></svg>
+        </div>
+        
+        <div style="border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px; font-size: 9px; text-align: center;">
+            ຂອບໃຈທີ່ໃຊ້ບໍລິການ<br>
+            Powered by LSM POS
+        </div>
+    </div>
+</div>
+
+<!-- SHARED JAVASCRIPT FILES -->
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/auth.js"></script>
@@ -441,7 +492,7 @@
 <!-- PAGE-SPECIFIC JAVASCRIPT -->
 <script>
 // =====================================================
-// POS CHECKOUT - PAGE SPECIFIC CODE
+// POS CHECKOUT - WITH BARCODE RECEIPT
 // =====================================================
 
 // State variables
@@ -542,6 +593,13 @@ function updateTotals() {
     document.getElementById('tax-display').innerHTML = formatLAK(tax);
     const finalTotal = total - currentDiscount;
     document.getElementById('grand-total').innerHTML = formatLAK(finalTotal);
+    
+    if (currentDiscount > 0) {
+        document.getElementById('discount-row').style.display = 'flex';
+        document.getElementById('discount-display').innerHTML = `-${formatLAK(currentDiscount)}`;
+    } else {
+        document.getElementById('discount-row').style.display = 'none';
+    }
 }
 
 function drawCart() {
@@ -705,6 +763,115 @@ function setPaymentMethod(method, btnElement) {
     btnElement.classList.add('active');
 }
 
+// Print receipt with barcode
+function printReceipt(orderId, subtotal, tax, finalTotal, pointsEarned, newPointsTotal) {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('lo-LA');
+    const timeStr = now.toLocaleTimeString('lo-LA');
+    
+    // Set receipt data
+    document.getElementById('receipt-datetime').innerHTML = `${dateStr} ${timeStr}`;
+    document.getElementById('receipt-order-id').innerHTML = orderId;
+    
+    // Customer info
+    let customerHtml = '';
+    if (selectedCustomer) {
+        customerHtml = `
+            <div>ລູກຄ້າ: ${selectedCustomer.name}</div>
+            <div>ເບີໂທ: ${selectedCustomer.phone}</div>
+        `;
+    }
+    document.getElementById('receipt-customer-info').innerHTML = customerHtml;
+    
+    // Items list
+    const itemsHtml = cart.map(item => `
+        <div style="display: flex; justify-content: space-between;">
+            <span>${item.name} x${item.qty}</span>
+            <span>${formatLAK(item.retail_price * item.qty)}</span>
+        </div>
+    `).join('');
+    document.getElementById('receipt-items-list').innerHTML = itemsHtml;
+    
+    // Totals
+    let totalsHtml = `
+        <div style="display: flex; justify-content: space-between;">
+            <span>ຍອດຍ່ອຍ:</span><span>${formatLAK(subtotal)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+            <span>ອາກອນ (7%):</span><span>${formatLAK(tax)}</span>
+        </div>
+    `;
+    if (currentDiscount > 0) {
+        totalsHtml += `
+            <div style="display: flex; justify-content: space-between;">
+                <span>ສ່ວນຫຼຸດ:</span><span>-${formatLAK(currentDiscount)}</span>
+            </div>
+        `;
+    }
+    totalsHtml += `
+        <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px;">
+            <span>ຍອດລວມ:</span><span>${formatLAK(finalTotal)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+            <span>ຊຳລະດ້ວຍ:</span><span>${paymentMethod}</span>
+        </div>
+    `;
+    document.getElementById('receipt-totals').innerHTML = totalsHtml;
+    
+    // Points info
+    let pointsHtml = '';
+    if (selectedCustomer) {
+        pointsHtml = `
+            <div>⭐ ຄະແນນທີ່ໄດ້ຮັບ: +${pointsEarned}</div>
+            <div>⭐ ຄະແນນທັງໝົດ: ${newPointsTotal}</div>
+        `;
+    } else if (pointsEarned > 0) {
+        pointsHtml = `<div>⭐ ຄະແນນທີ່ໄດ້ຮັບ: +${pointsEarned}</div>`;
+    }
+    document.getElementById('receipt-points-info').innerHTML = pointsHtml;
+    
+    // Generate barcode from order ID
+    JsBarcode("#receipt-barcode", orderId, {
+        format: "CODE128",
+        width: 1.5,
+        height: 35,
+        displayValue: true,
+        fontSize: 10,
+        fontOptions: "bold",
+        textMargin: 2
+    });
+    
+    // Print
+    setTimeout(() => {
+        const printContent = document.querySelector('.receipt-print').cloneNode(true);
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>ໃບຮັບເງິນ</title>
+                <style>
+                    @page { size: 80mm; margin: 0; }
+                    body { 
+                        font-family: 'Phetsarath', 'Noto Sans Lao', monospace;
+                        font-size: 12px;
+                        width: 80mm;
+                        margin: 0;
+                        padding: 8px;
+                        line-height: 1.4;
+                    }
+                    .receipt-print { width: 100%; }
+                    .divider { border-top: 1px dashed #000; margin: 5px 0; }
+                </style>
+            </head>
+            <body>${printContent.outerHTML}</body>
+            </html>
+        `);
+        printWindow.print();
+        printWindow.close();
+    }, 100);
+}
+
 async function processSale() {
     if (cart.length === 0) {
         showToast('ກະລຸນາເພີ່ມສິນຄ້າ', 'warning');
@@ -719,7 +886,10 @@ async function processSale() {
         const { subtotal, tax, total } = calculateTotals();
         const finalTotal = total - currentDiscount;
         const cashierName = getCurrentUser().name || 'Cashier';
+        const pointsEarned = Math.floor(finalTotal / (window.POINTS_RATE || 10000));
+        const orderId = 'LSM' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 1000);
         
+        // Cash payment change calculation
         if (paymentMethod === 'Cash') {
             const received = prompt(`ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, Math.ceil(finalTotal / 1000) * 1000);
             if (!received) {
@@ -734,9 +904,12 @@ async function processSale() {
                 btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
                 return;
             }
-            if (change > 0) alert(`ເງິນທອນ: ${formatLAK(change)}`);
+            if (change > 0) {
+                showToast(`ເງິນທອນ: ${formatLAK(change)}`, 'info');
+            }
         }
         
+        // Update inventory
         for (const item of cart) {
             await window.supabaseClient
                 .from('pos_products')
@@ -744,27 +917,42 @@ async function processSale() {
                 .eq('barcode', item.barcode);
         }
         
-        const orderId = 'ORD-' + Date.now().toString().slice(-8);
-        alert(`
-═══════════════════════
-        ໃບຮັບເງິນ
-═══════════════════════
-ເລກທີບິນ: ${orderId}
-ວັນທີ: ${new Date().toLocaleString('lo-LA')}
-ພະນັກງານ: ${cashierName}
-═══════════════════════
-${cart.map(item => `${item.name} x${item.qty} = ${formatLAK(item.retail_price * item.qty)}`).join('\n')}
-═══════════════════════
-ຍອດຍ່ອຍ: ${formatLAK(subtotal)}
-ອາກອນ (7%): ${formatLAK(tax)}
-ຍອດລວມ: ${formatLAK(finalTotal)}
-ຊຳລະດ້ວຍ: ${paymentMethod}
-═══════════════════════
-ຂອບໃຈທີ່ໃຊ້ບໍລິການ!
-        `);
+        // Calculate new points total for customer
+        let newPointsTotal = 0;
+        if (selectedCustomer) {
+            newPointsTotal = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
+            await window.supabaseClient
+                .from('pos_customers')
+                .update({ 
+                    points: newPointsTotal,
+                    total_spent: (selectedCustomer.total_spent || 0) + finalTotal
+                })
+                .eq('phone', selectedCustomer.phone);
+        }
         
+        // Save sale to database
+        await window.supabaseClient
+            .from('pos_sales')
+            .insert([{
+                items: cart,
+                total_amount: finalTotal,
+                payment_method: paymentMethod,
+                customer_phone: selectedCustomer?.phone || null,
+                status: 'COMPLETED'
+            }]);
+        
+        // Print receipt with barcode
+        printReceipt(orderId, subtotal, tax, finalTotal, pointsEarned, newPointsTotal);
+        
+        // Clear cart
         cart = [];
+        selectedCustomer = null;
+        appliedPoints = 0;
+        currentDiscount = 0;
+        document.getElementById('customer-phone').value = '';
+        document.getElementById('customer-info').style.display = 'none';
         drawCart();
+        
         showToast(`ຊຳລະສຳເລັດ! ${formatLAK(finalTotal)}`, 'success');
         
     } catch (err) {
