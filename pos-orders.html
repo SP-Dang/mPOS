@@ -268,16 +268,17 @@ function showToast(message, type) {
 
 async function searchOrder() {
     const searchText = document.getElementById('search-input').value.trim().toUpperCase();
+    
     if (!searchText) {
         showToast('ກະລຸນາປ້ອນເລກທີບິນ', 'warning');
         return;
     }
     
     const container = document.getElementById('results-container');
-    container.innerHTML = '<div style="text-align: center; padding: 40px;">⏳ ກຳລັງຄົ້ນຫາ...</div>';
+    container.innerHTML = '<div style="text-align: center; padding: 40px;">🔍 ກຳລັງຄົ້ນຫາ...</div>';
     
     try {
-        // Get ALL sales first (no filter on UUID)
+        // Force fresh data by not caching
         const { data, error } = await window.supabaseClient
             .from('pos_sales')
             .select('*')
@@ -286,14 +287,17 @@ async function searchOrder() {
         if (error) throw error;
         
         if (!data || data.length === 0) {
-            container.innerHTML = '<div class="no-results">❌ ບໍ່ມີຂໍ້ມູນບິນ</div>';
+            container.innerHTML = '<div class="no-results">📭 ຍັງບໍ່ມີຂໍ້ມູນການຂາຍ</div>';
             return;
         }
         
-        // FILTER IN JAVASCRIPT - compare short ID (first 8 characters)
+        // Update the cached data
+        allSales = data;
+        
+        // Filter by short ID
         const filtered = data.filter(order => {
             const shortId = order.id.substring(0, 8).toUpperCase();
-            return shortId.includes(searchText);
+            return shortId === searchText || shortId.includes(searchText);
         });
         
         if (filtered.length === 0) {
@@ -302,14 +306,13 @@ async function searchOrder() {
         }
         
         container.innerHTML = filtered.map(order => renderOrderCard(order)).join('');
-        showToast(`ພົບ ${filtered.length} ລາຍການ`, 'success');
+        showToast(`✅ ພົບ ${filtered.length} ລາຍການ`, 'success');
         
     } catch (err) {
         console.error('Search error:', err);
-        container.innerHTML = `<div class="no-results">❌ ເກີດຂໍ້ຜິດພາດ: ${err.message}</div>`;
+        container.innerHTML = `<div class="no-results">❌ ເກີດຂໍ້ຜິດພາດ: ${err.message || 'ກະລຸນາລອງໃໝ່'}</div>`;
     }
-}
-    
+}    
 function renderOrderCard(order) {
     const shortId = order.id.substring(0, 8).toUpperCase();
     const isRefunded = order.status === 'Refunded';
@@ -409,10 +412,12 @@ async function reprintReceipt(orderId) {
 async function processReturn(orderId) {
     if (!confirm('ຢືນຢັນການຄືນສິນຄ້າ? ສິນຄ້າຈະຖືກເພີ່ມກັບຄືນສາງ')) return;
     
-    const btn = document.querySelector(`.order-card[data-order-id="${orderId}"] .return-btn`);
-    if (btn) {
-        btn.disabled = true;
-        btn.innerText = '⏳ ກຳລັງດຳເນີນ...';
+    // Find and disable the button immediately
+    const orderCard = document.querySelector(`.order-card[data-order-id="${orderId}"]`);
+    const returnBtn = orderCard?.querySelector('.return-btn');
+    if (returnBtn) {
+        returnBtn.disabled = true;
+        returnBtn.innerText = '⏳ ກຳລັງດຳເນີນ...';
     }
     
     try {
@@ -442,7 +447,7 @@ async function processReturn(orderId) {
             }
         }
         
-        // Update order status
+        // Update order status to Refunded
         const cashierName = getCurrentUser().name || 'System';
         await window.supabaseClient
             .from('pos_sales')
@@ -450,18 +455,21 @@ async function processReturn(orderId) {
             .eq('id', orderId);
         
         showToast('ຄືນສິນຄ້າສຳເລັດ', 'success');
-        searchOrder(); // Refresh results
+        
+        // Refresh the search results to update the button
+        await searchOrder();
         
     } catch (err) {
-        console.error(err);
-        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
-        if (btn) {
-            btn.disabled = false;
-            btn.innerText = '🔄 ຄືນສິນຄ້າ';
+        console.error('Return error:', err);
+        showToast('ເກີດຂໍ້ຜິດພາດ: ' + err.message, 'error');
+        
+        // Re-enable button on error
+        if (returnBtn) {
+            returnBtn.disabled = false;
+            returnBtn.innerText = '🔄 ຄືນສິນຄ້າ';
         }
     }
 }
-
 document.getElementById('search-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') searchOrder();
 });
