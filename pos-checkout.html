@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>mPOS | ຂາຍສິນຄ້າ</title>
-    <!-- Load Supabase FIRST -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -201,10 +200,8 @@
         .total-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
         .grand-total { font-size: 24px; font-weight: 800; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); }
         .action-buttons { display: flex; gap: 10px; margin-bottom: 10px; }
-        .btn-hold, .btn-clear, .btn-complete { flex: 1; border: none; padding: 14px; border-radius: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
-        .btn-hold { background: #f59e0b; color: white; }
-        .btn-clear { background: #ef4444; color: white; }
-        .btn-complete { width: 100%; background: #10b981; color: white; font-size: 16px; font-weight: 800; }
+        .btn-clear { flex: 1; background: #ef4444; color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+        .btn-complete { width: 100%; background: #10b981; color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 800; font-size: 16px; cursor: pointer; }
         .empty-cart { text-align: center; padding: 60px; color: #64748b; }
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
@@ -287,16 +284,16 @@
 
 <script>
 // =====================================================
-// SIMPLE POS - SINGLE FILE VERSION - NO DUPLICATES
+// SIMPLE POS - WORKING VERSION
 // =====================================================
 
-// Get Supabase from global (loaded in head)
+// Supabase client
 const _supabase = supabase.createClient(
     "https://rcjvgyetkukyaexzskmg.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjanZneWV0a3VreWFleHpza21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NzQ2MzUsImV4cCI6MjA5MzQ1MDYzNX0.aNTyK0l1sOYpZ0TdGrmjxIQbafnujQb1hP6dENX_104"
 );
 
-console.log('Supabase connected:', _supabase);
+console.log('Supabase connected');
 
 // State
 let cart = [];
@@ -327,7 +324,6 @@ function logout() {
     window.location.href = 'login.html';
 }
 
-// Calculate totals
 function calculateTotals() {
     const subtotal = cart.reduce((sum, item) => sum + (item.retail_price * item.qty), 0);
     const tax = subtotal * 0.07;
@@ -347,7 +343,7 @@ function drawCart() {
     if (!tbody) return;
     
     if (cart.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>';
+        tbody.innerHTML = '<td><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>';
         updateDisplay();
         return;
     }
@@ -401,12 +397,11 @@ async function searchProduct(barcode) {
             .single();
         
         if (error || !data) {
-            console.log('Product not found:', error);
             showToast('ບໍ່ພົບສິນຄ້າ!', 'error');
             return;
         }
         
-        console.log('Product found:', data);
+        console.log('Product found:', data.name);
         
         const existing = cart.find(i => i.barcode === data.barcode);
         if (existing) {
@@ -440,13 +435,13 @@ async function searchCustomer() {
     }
     
     try {
-        const { data, error } = await _supabase
+        const { data } = await _supabase
             .from('pos_customers')
             .select('*')
             .eq('phone', phone)
             .single();
         
-        if (data && !error) {
+        if (data) {
             selectedCustomer = data;
             document.getElementById('customer-name').innerHTML = `👤 ${data.name}`;
             document.getElementById('customer-points').innerText = data.points || 0;
@@ -456,7 +451,6 @@ async function searchCustomer() {
             document.getElementById('customer-info').style.display = 'none';
         }
     } catch (err) {
-        console.log('Customer not found');
         selectedCustomer = null;
         document.getElementById('customer-info').style.display = 'none';
     }
@@ -507,29 +501,52 @@ async function processSale() {
                 .single();
             
             if (product) {
-                await _supabase
-                    .from('pos_products')
-                    .update({ stock_qty: product.stock_qty - item.qty })
-                    .eq('barcode', item.barcode);
+                const newStock = product.stock_qty - item.qty;
+                if (newStock >= 0) {
+                    await _supabase
+                        .from('pos_products')
+                        .update({ stock_qty: newStock })
+                        .eq('barcode', item.barcode);
+                }
             }
         }
         
-        // Save sale
-        const { error } = await _supabase
+        // Save sale - simplified data
+        const saleRecord = {
+            items: cart,
+            total_amount: total,
+            payment_method: paymentMethod
+        };
+        
+        if (selectedCustomer && selectedCustomer.phone) {
+            saleRecord.customer_phone = selectedCustomer.phone;
+        }
+        
+        console.log('Saving sale:', saleRecord);
+        
+        const { data, error } = await _supabase
             .from('pos_sales')
-            .insert([{ 
-                items: cart, 
-                total_amount: total, 
-                payment_method: paymentMethod,
-                customer_phone: selectedCustomer?.phone || null
-            }]);
+            .insert([saleRecord])
+            .select();
         
         if (error) {
             console.error('Save error:', error);
+            showToast(`ບັນທຶກບໍ່ສຳເລັດ: ${error.message}`, 'error');
             throw error;
         }
         
-        // Clear cart
+        const orderId = data[0]?.id || 'N/A';
+        const shortId = orderId.substring(0, 8).toUpperCase();
+        
+        alert(`✅ ຊຳລະສຳເລັດ!
+        
+ເລກທີບິນ: ${shortId}
+ຍອດລວມ: ${formatLAK(total)}
+ຊຳລະດ້ວຍ: ${paymentMethod}
+${selectedCustomer ? `ລູກຄ້າ: ${selectedCustomer.name}` : ''}
+
+ຂອບໃຈທີ່ໃຊ້ບໍລິການ!`);
+        
         cart = [];
         selectedCustomer = null;
         document.getElementById('customer-phone').value = '';
@@ -548,13 +565,9 @@ async function processSale() {
     }
 }
 
-// Set user name from localStorage
+// Set user name
 const userName = localStorage.getItem('lsm_user_name');
-if (userName) {
-    document.getElementById('user-name-display').innerHTML = `👤 ${userName}`;
-} else {
-    document.getElementById('user-name-display').innerHTML = `👤 Cashier`;
-}
+document.getElementById('user-name-display').innerHTML = `👤 ${userName || 'Cashier'}`;
 
 // Event listeners
 document.getElementById('barcode-input').addEventListener('keypress', (e) => {
@@ -570,8 +583,7 @@ document.getElementById('customer-phone').addEventListener('input', searchCustom
 drawCart();
 document.getElementById('barcode-input').focus();
 
-console.log('✅ POS Ready - Enter barcode: 1001, 1002, 1003, or 1007');
-console.log('✅ Supabase connected to project:', _supabase);
+console.log('✅ POS Ready');
 </script>
 </body>
 </html>
