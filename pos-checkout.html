@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>mPOS | ຂາຍສິນຄ້າ</title>
+    <!-- Load Supabase FIRST -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -92,6 +93,10 @@
             width: 280px;
             outline: none;
             font-family: monospace;
+        }
+        .barcode-input input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(16,185,129,0.1);
         }
         .barcode-input button {
             padding: 12px 20px;
@@ -282,14 +287,16 @@
 
 <script>
 // =====================================================
-// SIMPLE POS - STANDALONE VERSION
+// SIMPLE POS - SINGLE FILE VERSION - NO DUPLICATES
 // =====================================================
 
-// Supabase config
-const SUPABASE_URL = "https://rcjvgyetkukyaexzskmg.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjanZneWV0a3VreWFleHpza21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NzQ2MzUsImV4cCI6MjA5MzQ1MDYzNX0.aNTyK0l1sOYpZ0TdGrmjxIQbafnujQb1hP6dENX_104";
+// Get Supabase from global (loaded in head)
+const _supabase = supabase.createClient(
+    "https://rcjvgyetkukyaexzskmg.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjanZneWV0a3VreWFleHpza21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NzQ2MzUsImV4cCI6MjA5MzQ1MDYzNX0.aNTyK0l1sOYpZ0TdGrmjxIQbafnujQb1hP6dENX_104"
+);
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+console.log('Supabase connected:', _supabase);
 
 // State
 let cart = [];
@@ -384,17 +391,22 @@ function clearCart() {
 async function searchProduct(barcode) {
     if (!barcode.trim()) return;
     
+    console.log('Searching for:', barcode);
+    
     try {
-        const { data, error } = await supabase
+        const { data, error } = await _supabase
             .from('pos_products')
             .select('*')
             .eq('barcode', barcode.trim())
             .single();
         
         if (error || !data) {
+            console.log('Product not found:', error);
             showToast('ບໍ່ພົບສິນຄ້າ!', 'error');
             return;
         }
+        
+        console.log('Product found:', data);
         
         const existing = cart.find(i => i.barcode === data.barcode);
         if (existing) {
@@ -405,7 +417,7 @@ async function searchProduct(barcode) {
         drawCart();
         showToast(`ເພີ່ມ ${data.name} ສຳເລັດ`, 'success');
     } catch (err) {
-        console.error(err);
+        console.error('Error:', err);
         showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
     }
 }
@@ -428,13 +440,13 @@ async function searchCustomer() {
     }
     
     try {
-        const { data } = await supabase
+        const { data, error } = await _supabase
             .from('pos_customers')
             .select('*')
             .eq('phone', phone)
             .single();
         
-        if (data) {
+        if (data && !error) {
             selectedCustomer = data;
             document.getElementById('customer-name').innerHTML = `👤 ${data.name}`;
             document.getElementById('customer-points').innerText = data.points || 0;
@@ -443,7 +455,11 @@ async function searchCustomer() {
             selectedCustomer = null;
             document.getElementById('customer-info').style.display = 'none';
         }
-    } catch (err) {}
+    } catch (err) {
+        console.log('Customer not found');
+        selectedCustomer = null;
+        document.getElementById('customer-info').style.display = 'none';
+    }
 }
 
 function setPaymentMethod(method, btn) {
@@ -484,14 +500,14 @@ async function processSale() {
         
         // Update inventory
         for (const item of cart) {
-            const { data: product } = await supabase
+            const { data: product } = await _supabase
                 .from('pos_products')
                 .select('stock_qty')
                 .eq('barcode', item.barcode)
                 .single();
             
             if (product) {
-                await supabase
+                await _supabase
                     .from('pos_products')
                     .update({ stock_qty: product.stock_qty - item.qty })
                     .eq('barcode', item.barcode);
@@ -499,7 +515,7 @@ async function processSale() {
         }
         
         // Save sale
-        const { error } = await supabase
+        const { error } = await _supabase
             .from('pos_sales')
             .insert([{ 
                 items: cart, 
@@ -508,7 +524,10 @@ async function processSale() {
                 customer_phone: selectedCustomer?.phone || null
             }]);
         
-        if (error) throw error;
+        if (error) {
+            console.error('Save error:', error);
+            throw error;
+        }
         
         // Clear cart
         cart = [];
@@ -520,8 +539,8 @@ async function processSale() {
         showToast(`ຊຳລະສຳເລັດ! ${formatLAK(total)}`, 'success');
         
     } catch (err) {
-        console.error(err);
-        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
+        console.error('Sale error:', err);
+        showToast('ເກີດຂໍ້ຜິດພາດ: ' + (err.message || 'ກະລຸນາລອງໃໝ່'), 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
@@ -551,7 +570,8 @@ document.getElementById('customer-phone').addEventListener('input', searchCustom
 drawCart();
 document.getElementById('barcode-input').focus();
 
-console.log('POS Ready - Enter barcode 1001, 1002, 1003, or 1007');
+console.log('✅ POS Ready - Enter barcode: 1001, 1002, 1003, or 1007');
+console.log('✅ Supabase connected to project:', _supabase);
 </script>
 </body>
 </html>
