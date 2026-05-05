@@ -1,18 +1,16 @@
 // =====================================================
-// mPOS - AUTHENTICATION (Simplified - Working Version)
+// AUTHENTICATION - SHARED ACROSS ALL PAGES
 // =====================================================
 
 // Staff data
-const STAFF_DATA = {
+const STAFF_LIST = {
     cashier1: { id: "26295c52-0994-4ce3-8cb1-cf09e0371e0a", username: "cashier1", full_name: "Somphone", role: "CASHIER", pin: "1111" },
     gm: { id: "acb923c1-ffda-4a17-a77e-96b667298ee2", username: "gm", full_name: "General Manager", role: "GM", pin: "9999" }
 };
 
 // Login function
 async function loginWithPin(username, pin) {
-    console.log('Login attempt:', username);
-    
-    const staff = STAFF_DATA[username];
+    const staff = STAFF_LIST[username];
     
     if (!staff) {
         showToast('ຊື່ຜູ້ໃຊ້ບໍ່ຖືກຕ້ອງ', 'error');
@@ -24,28 +22,13 @@ async function loginWithPin(username, pin) {
         return false;
     }
     
-    // Store user info
     localStorage.setItem('lsm_user_id', staff.id);
     localStorage.setItem('lsm_user_name', staff.full_name);
     localStorage.setItem('lsm_role', staff.role);
     localStorage.setItem('lsm_username', staff.username);
     
-    console.log('Login successful:', staff.full_name);
     showToast(`ສະບາຍດີ ${staff.full_name}`, 'success');
     
-    // Update last login (optional)
-    if (window.supabaseClient) {
-        try {
-            await window.supabaseClient
-                .from('pos_staff')
-                .update({ last_login: new Date().toISOString() })
-                .eq('id', staff.id);
-        } catch (err) {
-            console.log('Could not update last login');
-        }
-    }
-    
-    // Redirect
     setTimeout(() => {
         if (staff.role === 'GM') {
             window.location.href = 'index.html';
@@ -85,7 +68,7 @@ function handleLogout() {
     }
 }
 
-// Display user name
+// Display user name in sidebar
 function displayUserName() {
     const user = getCurrentUser();
     const elem = document.getElementById('user-name-display');
@@ -94,12 +77,18 @@ function displayUserName() {
     }
 }
 
-// Setup role-based menus
+// Setup role-based menu hiding
 function setupRoleBasedMenus() {
     const user = getCurrentUser();
+    const adminMenus = document.querySelectorAll('.admin-only');
+    
     if (user.role !== 'GM') {
-        document.querySelectorAll('.admin-only').forEach(el => {
+        adminMenus.forEach(el => {
             el.style.display = 'none';
+        });
+    } else {
+        adminMenus.forEach(el => {
+            el.style.display = 'flex';
         });
     }
 }
