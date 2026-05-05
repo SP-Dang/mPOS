@@ -369,7 +369,7 @@
             <p id="receipt-datetime" style="margin: 3px 0; font-size: 9px;"></p>
         </div>
         
-        <!-- Customer Info - LINE #2 REMOVED (no border-bottom) -->
+        <!-- Customer Info -->
         <div id="receipt-customer-info" style="font-size: 9px; text-align: left; margin: 5px 0; padding: 3px 0;"></div>
         
         <!-- Order Info -->
@@ -390,16 +390,19 @@
         <!-- Totals -->
         <div id="receipt-totals" style="font-size: 9px; text-align: left; margin: 5px 0;"></div>
         
-        <!-- Points Info - LINE #5 REMOVED (no border-top) -->
+        <!-- Points Info with BORDER BELOW the total points -->
         <div id="receipt-points-info" style="font-size: 9px; text-align: left; margin: 5px 0; padding: 3px 0;"></div>
+        
+        <!-- Dotted line ONLY after points total (this is the FIRST yellow line - positioned correctly) -->
+        <div style="border-top: 1px dotted #000; margin: 5px 0;"></div>
         
         <!-- Barcode -->
         <div style="margin: 8px 0; text-align: center;">
             <svg id="receipt-barcode" width="140" height="30"></svg>
         </div>
         
-        <!-- Footer -->
-        <div style="border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px; font-size: 8px; text-align: center;">
+        <!-- Footer (NO extra line before footer - SECOND yellow line REMOVED) -->
+        <div style="padding-top: 5px; margin-top: 5px; font-size: 8px; text-align: center;">
             ຂອບໃຈທີ່ໃຊ້ບໍລິການ<br>
             mPOS<br>
             ພັດທະນາໂດຍ: ສົມພອນ 020 5534 8882
@@ -766,16 +769,18 @@ function printReceipt(orderId, total, pointsEarned) {
                 <span>ຄະແນນກ່ອນຊື້:</span>
                 <span>⭐ ${(selectedCustomer.points || 0).toLocaleString()}</span>
             </div>
+            ${appliedPoints > 0 ? `
             <div style="display: flex; justify-content: space-between;">
                 <span>ຄະແນນທີ່ໃຊ້:</span>
                 <span style="color: #ef4444;">- ${appliedPoints.toLocaleString()}</span>
             </div>
+            ` : ''}
             <div style="display: flex; justify-content: space-between;">
                 <span>ຄະແນນທີ່ໄດ້ຮັບ:</span>
-                <span style="color: #10b981;">+ ${pointsEarned}</span>
+                <span style="color: #10b981;">+ ${pointsEarned.toLocaleString()}</span>
             </div>
-            <div style="display: flex; justify-content: space-between; border-top: 1px dotted #000; margin-top: 3px; padding-top: 3px;">
-                <span>ຄະແນນທັງໝົດ:</span>
+            <div style="display: flex; justify-content: space-between; margin-top: 3px;">
+                <span><b>ຄະແນນທັງໝົດ:</b></span>
                 <span><b>⭐ ${newPointsTotal.toLocaleString()}</b></span>
             </div>
         `;
@@ -784,7 +789,7 @@ function printReceipt(orderId, total, pointsEarned) {
             customerHtml = `
                 <div style="display: flex; justify-content: space-between;">
                     <span>ຄະແນນທີ່ໄດ້ຮັບ:</span>
-                    <span style="color: #10b981;">+ ${pointsEarned}</span>
+                    <span style="color: #10b981;">+ ${pointsEarned.toLocaleString()}</span>
                 </div>
                 <div style="font-size: 8px; color: #64748b; margin-top: 3px;">
                     ສະສົມຄະແນນເພື່ອສ່ວນຫຼຸດໃນຄັ້ງຕໍ່ໄປ
@@ -844,10 +849,10 @@ function printReceipt(orderId, total, pointsEarned) {
     `;
     document.getElementById('receipt-totals').innerHTML = totalsHtml;
     
-    // Points summary for footer
+    // Points summary - NO LINE here, just text
     let pointsFooterHtml = '';
     if (selectedCustomer && pointsEarned > 0) {
-        pointsFooterHtml = `<div>⭐ ສະສົມຄະແນນ ${pointsEarned} ສໍາລັບການຊື້ຄັ້ງຕໍ່ໄປ</div>`;
+        pointsFooterHtml = `<div style="text-align: center; font-size: 8px;">⭐ ສະສົມຄະແນນ ${pointsEarned} ສໍາລັບການຊື້ຄັ້ງຕໍ່ໄປ</div>`;
     }
     document.getElementById('receipt-points-info').innerHTML = pointsFooterHtml;
     
@@ -883,9 +888,6 @@ function printReceipt(orderId, total, pointsEarned) {
                     line-height: 1.35;
                 }
                 .receipt-print { width: 100%; }
-                .text-center { text-align: center; }
-                .text-right { text-align: right; }
-                .text-left { text-align: left; }
             </style>
         </head>
         <body>${content.outerHTML}</body>
@@ -894,7 +896,6 @@ function printReceipt(orderId, total, pointsEarned) {
         win.close();
     }, 200);
 }
-
 async function processSale() {
     if (cart.length === 0) {
         showToast('ກະລຸນາເພີ່ມສິນຄ້າ', 'warning');
