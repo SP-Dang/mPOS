@@ -277,10 +277,11 @@ async function searchOrder() {
     container.innerHTML = '<div style="text-align: center; padding: 40px;">ກຳລັງຄົ້ນຫາ...</div>';
     
     try {
+        // Convert UUID to text for searching using ::text
         const { data, error } = await window.supabaseClient
             .from('pos_sales')
             .select('*')
-            .ilike('id', `${searchText}%`)
+            .ilike('id::text', `${searchText}%`)
             .order('created_at', { ascending: false });
         
         if (error) throw error;
@@ -294,10 +295,10 @@ async function searchOrder() {
         
     } catch (err) {
         console.error(err);
-        container.innerHTML = '<div class="no-results">❌ ເກີດຂໍ້ຜິດພາດ</div>';
+        container.innerHTML = '<div class="no-results">❌ ເກີດຂໍ້ຜິດພາດ: ' + (err.message || 'ກະລຸນາລອງໃໝ່') + '</div>';
     }
 }
-
+    
 function renderOrderCard(order) {
     const shortId = order.id.substring(0, 8).toUpperCase();
     const isRefunded = order.status === 'Refunded';
