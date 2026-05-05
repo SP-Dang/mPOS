@@ -723,6 +723,8 @@ async function applyPoints() {
     const { subtotal, tax } = calculateTotals();
     const maxPointsValue = Math.floor((subtotal + tax) / window.POINTS_VALUE);
     const availablePoints = Math.min(selectedCustomer.points, maxPointsValue);
+    // and later:
+    currentDiscount = appliedPoints * window.POINTS_VALUE;
     
     if (availablePoints <= 0) {
         showToast('ຄະແນນບໍ່ພຽງພໍ', 'warning');
