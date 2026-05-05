@@ -284,17 +284,19 @@
 <!-- Add/Edit Product Modal -->
 <div id="product-modal" class="modal">
     <div class="modal-content">
-        <h3 id="modal-title">ເພີ່ມສິນຄ້າໃໝ່</h3>
-        <input type="text" id="product-barcode" placeholder="ບາໂຄດ *">
-        <input type="text" id="product-name" placeholder="ຊື່ສິນຄ້າ *">
-        <input type="number" id="product-price" placeholder="ລາຄາຂາຍ (₭) *">
-        <input type="number" id="product-cost" placeholder="ລາຄາທຶນ (₭)">
-        <input type="number" id="product-stock" placeholder="ຈຳນວນໃນສາງ *" value="0">
-        <input type="number" id="product-minstock" placeholder="ຂັ້ນຕ່ຳເຕືອນ" value="5">
-        <input type="text" id="product-category" placeholder="ໝວດໝູ່">
+        <h3 id="modal-title">➕ ເພີ່ມສິນຄ້າໃໝ່</h3>
+        
+        <input type="text" id="product-barcode" placeholder="📦 ບາໂຄດ *">
+        <input type="text" id="product-name" placeholder="📝 ຊື່ສິນຄ້າ *">
+        <input type="number" id="product-price" placeholder="💰 ລາຄາຂາຍ (₭) *">
+        <input type="number" id="product-cost" placeholder="🏭 ລາຄາທຶນ (₭)">
+        <input type="number" id="product-stock" placeholder="📊 ຈຳນວນໃນສາງ *">
+        <input type="number" id="product-minstock" placeholder="⚠️ ຂັ້ນຕ່ຳເຕືອນ">
+        <input type="text" id="product-category" placeholder="📂 ໝວດໝູ່">
+        
         <div class="modal-buttons">
-            <button class="save-btn" onclick="saveProduct()">ບັນທຶກ</button>
-            <button class="cancel-btn" onclick="closeModal()">ຍົກເລີກ</button>
+            <button class="save-btn" onclick="saveProduct()">💾 ບັນທຶກ</button>
+            <button class="cancel-btn" onclick="closeModal()">❌ ຍົກເລີກ</button>
         </div>
     </div>
 </div>
