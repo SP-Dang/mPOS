@@ -261,6 +261,7 @@
             <div id="customer-info" style="display: none;" class="customer-info">
                 <div id="customer-name"></div>
                 <div>⭐ ຄະແນນ: <span id="customer-points">0</span></div>
+                <button onclick="applyPoints()" style="margin-top: 8px; padding: 5px 10px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 11px;">ໃຊ້ຄະແນນ</button>
             </div>
         </div>
         
@@ -272,6 +273,7 @@
         <div class="total-card">
             <div class="total-row"><span>ຍອດຍ່ອຍ</span><span id="subtotal-display">₭0</span></div>
             <div class="total-row"><span>ອາກອນ (7%)</span><span id="tax-display">₭0</span></div>
+            <div class="total-row" id="discount-row" style="display: none;"><span>ສ່ວນຫຼຸດ</span><span id="discount-display">₭0</span></div>
             <div class="grand-total"><div>ຍອດລວມທັງໝົດ</div><div id="grand-total">₭0</div></div>
         </div>
         
@@ -284,7 +286,7 @@
 
 <script>
 // =====================================================
-// SIMPLE POS - WORKING VERSION
+// POS CHECKOUT - COMPLETE WORKING VERSION
 // =====================================================
 
 // Supabase client
@@ -293,12 +295,12 @@ const _supabase = supabase.createClient(
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjanZneWV0a3VreWFleHpza21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NzQ2MzUsImV4cCI6MjA5MzQ1MDYzNX0.aNTyK0l1sOYpZ0TdGrmjxIQbafnujQb1hP6dENX_104"
 );
 
-console.log('Supabase connected');
-
-// State
+// STATE VARIABLES
 let cart = [];
 let selectedCustomer = null;
 let paymentMethod = "Cash";
+let appliedPoints = 0;      // ← ADDED
+let currentDiscount = 0;    // ← ADDED
 
 // Helper functions
 function formatLAK(amount) {
@@ -324,10 +326,11 @@ function logout() {
     window.location.href = 'login.html';
 }
 
+// Calculate totals including discount
 function calculateTotals() {
     const subtotal = cart.reduce((sum, item) => sum + (item.retail_price * item.qty), 0);
     const tax = subtotal * 0.07;
-    const total = subtotal + tax;
+    const total = subtotal + tax - currentDiscount;
     return { subtotal, tax, total };
 }
 
@@ -336,6 +339,13 @@ function updateDisplay() {
     document.getElementById('subtotal-display').innerHTML = formatLAK(subtotal);
     document.getElementById('tax-display').innerHTML = formatLAK(tax);
     document.getElementById('grand-total').innerHTML = formatLAK(total);
+    
+    if (currentDiscount > 0) {
+        document.getElementById('discount-row').style.display = 'flex';
+        document.getElementById('discount-display').innerHTML = `-${formatLAK(currentDiscount)}`;
+    } else {
+        document.getElementById('discount-row').style.display = 'none';
+    }
 }
 
 function drawCart() {
@@ -343,7 +353,7 @@ function drawCart() {
     if (!tbody) return;
     
     if (cart.length === 0) {
-        tbody.innerHTML = '<td><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>';
         updateDisplay();
         return;
     }
@@ -379,6 +389,8 @@ function clearCart() {
     if (cart.length === 0) return;
     if (confirm('ລຶບສິນຄ້າທັງໝົດ?')) {
         cart = [];
+        appliedPoints = 0;
+        currentDiscount = 0;
         drawCart();
         showToast('ລຶບສຳເລັດ', 'info');
     }
@@ -386,8 +398,6 @@ function clearCart() {
 
 async function searchProduct(barcode) {
     if (!barcode.trim()) return;
-    
-    console.log('Searching for:', barcode);
     
     try {
         const { data, error } = await _supabase
@@ -401,8 +411,6 @@ async function searchProduct(barcode) {
             return;
         }
         
-        console.log('Product found:', data.name);
-        
         const existing = cart.find(i => i.barcode === data.barcode);
         if (existing) {
             existing.qty++;
@@ -412,7 +420,7 @@ async function searchProduct(barcode) {
         drawCart();
         showToast(`ເພີ່ມ ${data.name} ສຳເລັດ`, 'success');
     } catch (err) {
-        console.error('Error:', err);
+        console.error(err);
         showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
     }
 }
@@ -462,6 +470,34 @@ function setPaymentMethod(method, btn) {
     btn.classList.add('active');
 }
 
+// Apply loyalty points
+async function applyPoints() {
+    if (!selectedCustomer) {
+        showToast('ກະລຸນາເລືອກລູກຄ້າກ່ອນ', 'warning');
+        return;
+    }
+    
+    const { subtotal, tax } = calculateTotals();
+    const pointsValue = 1000;
+    const maxPointsValue = Math.floor((subtotal + tax) / pointsValue);
+    const availablePoints = Math.min(selectedCustomer.points, maxPointsValue);
+    
+    if (availablePoints <= 0) {
+        showToast('ຄະແນນບໍ່ພຽງພໍ', 'warning');
+        return;
+    }
+    
+    const pointsToUse = prompt(`ມີ ${selectedCustomer.points} ຄະແນນ. ໃຊ້ຈັກຄະແນນ? (ສູງສຸດ ${availablePoints})`, availablePoints);
+    
+    if (pointsToUse && !isNaN(pointsToUse) && pointsToUse > 0) {
+        appliedPoints = Math.min(parseInt(pointsToUse), availablePoints);
+        currentDiscount = appliedPoints * pointsValue;
+        updateDisplay();
+        showToast(`ໃຊ້ ${appliedPoints} ຄະແນນ, ຫຼຸດ ${formatLAK(currentDiscount)}`, 'success');
+    }
+}
+
+// Process sale
 async function processSale() {
     if (cart.length === 0) {
         showToast('ກະລຸນາເພີ່ມສິນຄ້າ', 'warning');
@@ -473,7 +509,17 @@ async function processSale() {
     btn.innerHTML = '⏳ ກຳລັງດຳເນີນການ...';
     
     try {
-        const { total } = calculateTotals();
+        const { subtotal, tax, total } = calculateTotals();
+        const cashierName = localStorage.getItem('lsm_user_name') || 'Cashier';
+        const pointsEarned = Math.floor(total / 10000);
+        
+        // Generate invoice number
+        const today = new Date();
+        const dateStr = today.getFullYear().toString().slice(-2) + 
+                       (today.getMonth() + 1).toString().padStart(2, '0') + 
+                       today.getDate().toString().padStart(2, '0');
+        const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const invoiceNumber = `INV-${dateStr}-${randomNum}`;
         
         if (paymentMethod === 'Cash') {
             const received = prompt(`ຍອດລວມ: ${formatLAK(total)}\nເງິນທີ່ໃຫ້ມາ:`, Math.ceil(total / 1000) * 1000);
@@ -511,16 +557,21 @@ async function processSale() {
             }
         }
         
-        // Save sale - simplified data
+        // Prepare sale record with ALL required columns
         const saleRecord = {
+            invoice_number: invoiceNumber,
             items: cart,
+            subtotal: subtotal,
+            tax_amount: tax,
+            discount_amount: currentDiscount,
             total_amount: total,
-            payment_method: paymentMethod
+            payment_method: paymentMethod,
+            status: 'COMPLETED',
+            cashier_name: cashierName,
+            customer_phone: selectedCustomer?.phone || null,
+            points_earned: pointsEarned,
+            points_redeemed: appliedPoints
         };
-        
-        if (selectedCustomer && selectedCustomer.phone) {
-            saleRecord.customer_phone = selectedCustomer.phone;
-        }
         
         console.log('Saving sale:', saleRecord);
         
@@ -535,7 +586,19 @@ async function processSale() {
             throw error;
         }
         
-        const orderId = data[0]?.id || 'N/A';
+        // Update customer points
+        if (selectedCustomer) {
+            const newPoints = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
+            await _supabase
+                .from('pos_customers')
+                .update({ 
+                    points: newPoints,
+                    total_spent: (selectedCustomer.total_spent || 0) + total
+                })
+                .eq('phone', selectedCustomer.phone);
+        }
+        
+        const orderId = data[0]?.id || invoiceNumber;
         const shortId = orderId.substring(0, 8).toUpperCase();
         
         alert(`✅ ຊຳລະສຳເລັດ!
@@ -544,11 +607,15 @@ async function processSale() {
 ຍອດລວມ: ${formatLAK(total)}
 ຊຳລະດ້ວຍ: ${paymentMethod}
 ${selectedCustomer ? `ລູກຄ້າ: ${selectedCustomer.name}` : ''}
+⭐ ຄະແນນທີ່ໄດ້: +${pointsEarned}
 
 ຂອບໃຈທີ່ໃຊ້ບໍລິການ!`);
         
+        // Clear cart
         cart = [];
         selectedCustomer = null;
+        appliedPoints = 0;
+        currentDiscount = 0;
         document.getElementById('customer-phone').value = '';
         document.getElementById('customer-info').style.display = 'none';
         drawCart();
@@ -583,7 +650,7 @@ document.getElementById('customer-phone').addEventListener('input', searchCustom
 drawCart();
 document.getElementById('barcode-input').focus();
 
-console.log('✅ POS Ready');
+console.log('✅ POS Ready - Enter barcode: 1001, 1002, 1003, or 1007');
 </script>
 </body>
 </html>
