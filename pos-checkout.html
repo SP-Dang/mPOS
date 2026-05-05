@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>mPOS | ຂາຍສິນຄ້າ</title>
+    <!-- Supabase MUST load first -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -419,7 +421,7 @@
         <div class="cart-table-container">
             <table class="cart-table">
                 <thead>
-                    <tr><th>ສິນຄ້າ</th><th>ລາຄາ</th><th>ຈຳນວນ</th><th>ລວມ</th><th></th></tr>
+                    <tr><th>ສິນຄ້າ</th><th>ລາຄາ</th><th>ຈຳນວນ</th><th>ລວມ</th><th></th></table>
                 </thead>
                 <tbody id="cart-body">
                     <tr><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>
@@ -445,7 +447,7 @@
         </div>
         
         <div class="total-card">
-            <div class="total-row"><span>ເປັນເງິນ</span><span id="subtotal-display">₭0</span></div>
+            <div class="total-row"><span>ຍອດຍ່ອຍ</span><span id="subtotal-display">₭0</span></div>
             <div class="total-row"><span>ອາກອນ (7%)</span><span id="tax-display">₭0</span></div>
             <div class="total-row" id="discount-row" style="display: none;"><span>ສ່ວນຫຼຸດ</span><span id="discount-display">₭0</span></div>
             <div class="grand-total"><div>ຍອດລວມທັງໝົດ</div><div id="grand-total">₭0</div></div>
@@ -493,7 +495,9 @@
     </div>
 </div>
 
-<!-- SHARED JAVASCRIPT FILES -->
+<!-- ============================================= -->
+<!-- SHARED JAVASCRIPT FILES - CORRECT ORDER       -->
+<!-- ============================================= -->
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/auth.js"></script>
@@ -501,7 +505,7 @@
 <!-- PAGE-SPECIFIC JAVASCRIPT -->
 <script>
 // =====================================================
-// POS CHECKOUT - WITH REAL SUPABASE UUID ON RECEIPT
+// POS CHECKOUT - WORKING VERSION
 // =====================================================
 
 // State variables
@@ -627,7 +631,7 @@ function drawCart() {
             <td><div class="qty-control"><button class="qty-btn" onclick="adjustQuantity(${idx}, -1)">-</button><span>${item.qty}</span><button class="qty-btn" onclick="adjustQuantity(${idx}, 1)">+</button></div></td>
             <td>${formatLAK(item.retail_price * item.qty)}</td>
             <td><button class="remove-btn" onclick="removeItem(${idx})">🗑️</button></td>
-        </table>
+        </tr>
     `).join('');
     
     updateTotals();
@@ -663,6 +667,11 @@ function clearCart() {
 
 async function searchProduct(barcode) {
     if (!barcode.trim()) return;
+    
+    if (!window.supabaseClient) {
+        showToast('ລະບົບກຳລັງເລີ່ມຕົ້ນ, ກະລຸນາລໍຖ້າ...', 'warning');
+        return;
+    }
     
     try {
         const { data, error } = await window.supabaseClient
@@ -778,12 +787,10 @@ function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, poin
     const dateStr = now.toLocaleDateString('lo-LA');
     const timeStr = now.toLocaleTimeString('lo-LA');
     
-    // Set receipt data
     document.getElementById('receipt-datetime').innerHTML = `${dateStr} ${timeStr}`;
     document.getElementById('receipt-order-id').innerHTML = shortOrderId;
     document.getElementById('receipt-full-id').innerHTML = `ID: ${fullOrderId}`;
     
-    // Customer info
     let customerHtml = '';
     if (selectedCustomer) {
         customerHtml = `
@@ -793,7 +800,6 @@ function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, poin
     }
     document.getElementById('receipt-customer-info').innerHTML = customerHtml;
     
-    // Items list
     const itemsHtml = cart.map(item => `
         <div style="display: flex; justify-content: space-between;">
             <span>${item.name} x${item.qty}</span>
@@ -802,10 +808,9 @@ function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, poin
     `).join('');
     document.getElementById('receipt-items-list').innerHTML = itemsHtml;
     
-    // Totals
     let totalsHtml = `
         <div style="display: flex; justify-content: space-between;">
-            <span>ເປັນເງິນ:</span><span>${formatLAK(subtotal)}</span>
+            <span>ຍອດຍ່ອຍ:</span><span>${formatLAK(subtotal)}</span>
         </div>
         <div style="display: flex; justify-content: space-between;">
             <span>ອາກອນ (7%):</span><span>${formatLAK(tax)}</span>
@@ -828,7 +833,6 @@ function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, poin
     `;
     document.getElementById('receipt-totals').innerHTML = totalsHtml;
     
-    // Points info
     let pointsHtml = '';
     if (selectedCustomer) {
         pointsHtml = `
@@ -840,7 +844,6 @@ function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, poin
     }
     document.getElementById('receipt-points-info').innerHTML = pointsHtml;
     
-    // Generate barcode from SHORT order ID (8 digits)
     JsBarcode("#receipt-barcode", shortOrderId, {
         format: "CODE128",
         width: 1.5,
@@ -851,7 +854,6 @@ function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, poin
         textMargin: 2
     });
     
-    // Print
     setTimeout(() => {
         const printContent = document.querySelector('.receipt-print').cloneNode(true);
         const printWindow = window.open('', '_blank');
@@ -892,27 +894,11 @@ async function processSale() {
     btn.innerHTML = '⏳ ກຳລັງດຳເນີນການ...';
     
     try {
-        // =============================================
-        // DEBUG: Log cart contents before update
-        // =============================================
-        console.log('=== CART CONTENTS BEFORE SALE ===');
-        cart.forEach((item, idx) => {
-            console.log(`Item ${idx}:`, {
-                name: item.name,
-                barcode: item.barcode,
-                barcodeType: typeof item.barcode,
-                qty: item.qty,
-                stock_qty: item.stock_qty
-            });
-        });
-        console.log('================================');
-        
         const { subtotal, tax, total } = calculateTotals();
         const finalTotal = total - currentDiscount;
         const cashierName = getCurrentUser().name || 'Cashier';
         const pointsEarned = Math.floor(finalTotal / (window.POINTS_RATE || 10000));
         
-        // Cash payment change calculation
         if (paymentMethod === 'Cash') {
             const received = prompt(`ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, Math.ceil(finalTotal / 1000) * 1000);
             if (!received) {
@@ -932,69 +918,27 @@ async function processSale() {
             }
         }
 
-        // =============================================
-        // INVENTORY UPDATE - WITH DEBUG
-        // =============================================
         for (const item of cart) {
-            console.log(`--- Processing: ${item.name} ---`);
-            
-            // Clean the barcode (ensure it's a string)
             const cleanBarcode = String(item.barcode).trim();
-            console.log(`Searching for barcode: "${cleanBarcode}" (type: ${typeof cleanBarcode})`);
             
-            // Get fresh stock from database
             const { data: product, error: fetchError } = await window.supabaseClient
                 .from('pos_products')
                 .select('stock_qty')
                 .eq('barcode', cleanBarcode)
                 .single();
             
-            if (fetchError) {
-                console.error('❌ Fetch error:', fetchError);
-                showToast(`ບໍ່ພົບສິນຄ້າ: ${cleanBarcode}`, 'error');
-                throw fetchError;
-            }
+            if (fetchError) throw fetchError;
             
-            const currentStockInDB = product.stock_qty;
-            const sellingQty = item.qty;
-            const newStock = currentStockInDB - sellingQty;
+            const newStock = product.stock_qty - item.qty;
             
-            console.log(`Current DB stock: ${currentStockInDB}, Selling: ${sellingQty}, New: ${newStock}`);
-            
-            // Perform update
-            const { data: updateData, error: updateError } = await window.supabaseClient
+            const { error: updateError } = await window.supabaseClient
                 .from('pos_products')
                 .update({ stock_qty: newStock })
-                .eq('barcode', cleanBarcode)
-                .select();
+                .eq('barcode', cleanBarcode);
             
-            if (updateError) {
-                console.error('❌ Update error:', updateError);
-                showToast(`ອັບເດດສະຕັອກບໍ່ສຳເລັດ: ${item.name}`, 'error');
-                throw updateError;
-            }
-            
-            console.log('✅ Update response:', updateData);
-            
-            // Verify the update
-            const { data: verify } = await window.supabaseClient
-                .from('pos_products')
-                .select('stock_qty')
-                .eq('barcode', cleanBarcode)
-                .single();
-            
-            console.log(`🔍 Verification: New stock in DB = ${verify.stock_qty}`);
-            
-            if (verify.stock_qty !== newStock) {
-                console.error('❌ MISMATCH! Update did not persist!');
-                showToast(`ການອັບເດດສະຕັອກລົ້ມເຫຼວ: ${item.name}`, 'error');
-                throw new Error('Update failed to persist');
-            }
-            
-            console.log(`✅ SUCCESS: ${item.name} updated from ${currentStockInDB} to ${verify.stock_qty}`);
+            if (updateError) throw updateError;
         }
         
-        // Calculate new points total for customer
         let newPointsTotal = 0;
         if (selectedCustomer) {
             newPointsTotal = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
@@ -1007,7 +951,6 @@ async function processSale() {
                 .eq('phone', selectedCustomer.phone);
         }
         
-        // Save sale to Supabase
         const { data: saleData, error: saleError } = await window.supabaseClient
             .from('pos_sales')
             .insert([{
@@ -1019,19 +962,13 @@ async function processSale() {
             }])
             .select();
         
-        if (saleError) {
-            console.error('Sale save error:', saleError);
-            throw saleError;
-        }
+        if (saleError) throw saleError;
         
-        // Get the actual Supabase UUID
         const fullOrderId = saleData[0].id;
         const shortOrderId = fullOrderId.substring(0, 8).toUpperCase();
         
-        // Print receipt
         printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, pointsEarned, newPointsTotal);
         
-        // Clear cart
         cart = [];
         selectedCustomer = null;
         appliedPoints = 0;
@@ -1043,7 +980,7 @@ async function processSale() {
         showToast(`ຊຳລະສຳເລັດ! ເລກທີບິນ: ${shortOrderId}`, 'success');
         
     } catch (err) {
-        console.error('❌ Sale error:', err);
+        console.error('Sale error:', err);
         showToast(`ເກີດຂໍ້ຜິດພາດ: ${err.message || 'ກະລຸນາລອງໃໝ່'}`, 'error');
     } finally {
         btn.disabled = false;
@@ -1051,35 +988,6 @@ async function processSale() {
         document.getElementById('barcode-input').focus();
     }
 }
-    
-// Search function for order history (can be used in pos-orders.html)
-async function searchOrderByShortId(shortId) {
-    if (!shortId || shortId.length < 4) {
-        showToast('ກະລຸນາປ້ອນເລກທີບິນຢ່າງນ້ອຍ 4 ຕົວ', 'warning');
-        return null;
-    }
-    
-    const { data, error } = await window.supabaseClient
-        .from('pos_sales')
-        .select('*')
-        .ilike('id', `${shortId}%`)
-        .order('created_at', { ascending: false });
-    
-    if (error) {
-        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
-        return null;
-    }
-    
-    if (data.length === 0) {
-        showToast('ບໍ່ພົບບິນ', 'warning');
-        return null;
-    }
-    
-    return data;
-}
-
-// Make search function available globally for other pages
-window.searchOrderByShortId = searchOrderByShortId;
 
 // Event listeners
 document.getElementById('customer-phone').addEventListener('input', searchCustomer);
@@ -1095,10 +1003,6 @@ function init() {
 
 init();
 </script>
-    <!-- SHARED JAVASCRIPT FILES (ORDER MATTERS!) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/auth.js"></script>
+
 </body>
 </html>
