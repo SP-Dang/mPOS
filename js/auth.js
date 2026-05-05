@@ -92,3 +92,17 @@ function setupRoleBasedMenus() {
         });
     }
 }
+
+// Add this function to auth.js
+async function setRLSContext(role) {
+    try {
+        // Call the Supabase function to set the role for RLS
+        const { error } = await window.supabaseClient.rpc('set_app_role', { 
+            role_name: role 
+        });
+        if (error) console.error('RLS role error:', error);
+        else console.log('✅ RLS context set:', role);
+    } catch (err) {
+        console.error('Failed to set RLS context:', err);
+    }
+}
