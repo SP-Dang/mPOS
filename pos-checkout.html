@@ -516,6 +516,13 @@ let holdBills = [];
 let appliedPoints = 0;
 let currentDiscount = 0;
 
+// Wait for DOM before accessing elements
+function getElement(id) {
+    const el = document.getElementById(id);
+    if (!el) console.warn(`Element not found: ${id}`);
+    return el;
+}
+
 // Load hold bills
 function loadHoldBills() {
     const saved = localStorage.getItem('lsm_hold_bills');
@@ -531,8 +538,10 @@ function saveHoldBills() {
 }
 
 function updateHoldPanel() {
-    const panel = document.getElementById('hold-panel');
-    const container = document.getElementById('hold-bills-list');
+    const panel = getElement('hold-panel');
+    const container = getElement('hold-bills-list');
+    
+    if (!panel || !container) return;
     
     if (holdBills.length > 0) {
         panel.style.display = 'block';
@@ -549,8 +558,10 @@ function updateHoldPanel() {
 }
 
 function toggleHoldPanel() {
-    const panel = document.getElementById('hold-panel');
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    const panel = getElement('hold-panel');
+    if (panel) {
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
 }
 
 function holdBill() {
@@ -601,25 +612,37 @@ function calculateTotals() {
 }
 
 function updateTotals() {
+    const subtotalEl = getElement('subtotal-display');
+    const taxEl = getElement('tax-display');
+    const grandTotalEl = getElement('grand-total');
+    const discountRow = getElement('discount-row');
+    const discountDisplay = getElement('discount-display');
+    
     const { subtotal, tax, total } = calculateTotals();
-    document.getElementById('subtotal-display').innerHTML = formatLAK(subtotal);
-    document.getElementById('tax-display').innerHTML = formatLAK(tax);
     const finalTotal = total - currentDiscount;
-    document.getElementById('grand-total').innerHTML = formatLAK(finalTotal);
+    
+    if (subtotalEl) subtotalEl.innerHTML = formatLAK(subtotal);
+    if (taxEl) taxEl.innerHTML = formatLAK(tax);
+    if (grandTotalEl) grandTotalEl.innerHTML = formatLAK(finalTotal);
     
     if (currentDiscount > 0) {
-        document.getElementById('discount-row').style.display = 'flex';
-        document.getElementById('discount-display').innerHTML = `-${formatLAK(currentDiscount)}`;
+        if (discountRow) discountRow.style.display = 'flex';
+        if (discountDisplay) discountDisplay.innerHTML = `-${formatLAK(currentDiscount)}`;
     } else {
-        document.getElementById('discount-row').style.display = 'none';
+        if (discountRow) discountRow.style.display = 'none';
     }
 }
 
 function drawCart() {
-    const tbody = document.getElementById('cart-body');
+    const tbody = getElement('cart-body');
+    
+    if (!tbody) {
+        console.error('Cart body element not found');
+        return;
+    }
     
     if (cart.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td>' + '</tr>';
         updateTotals();
         return;
     }
@@ -707,22 +730,19 @@ function manualSearch() {
     const barcode = prompt('ປ້ອນບາໂຄດສິນຄ້າ (1001, 1002, 1003, 1007):');
     if (barcode) {
         searchProduct(barcode);
-        document.getElementById('barcode-input').value = '';
-        document.getElementById('barcode-input').focus();
+        const barcodeInput = getElement('barcode-input');
+        if (barcodeInput) {
+            barcodeInput.value = '';
+            barcodeInput.focus();
+        }
     }
 }
 
-document.getElementById('barcode-input').addEventListener('keypress', async (e) => {
-    if (e.key === 'Enter') {
-        await searchProduct(e.target.value);
-        e.target.value = '';
-    }
-});
-
 async function searchCustomer() {
-    const phone = document.getElementById('customer-phone').value.trim();
-    if (phone.length < 10) {
-        document.getElementById('customer-info').style.display = 'none';
+    const phone = getElement('customer-phone')?.value.trim();
+    if (!phone || phone.length < 10) {
+        const customerInfo = getElement('customer-info');
+        if (customerInfo) customerInfo.style.display = 'none';
         selectedCustomer = null;
         return;
     }
@@ -736,12 +756,16 @@ async function searchCustomer() {
         
         if (data) {
             selectedCustomer = data;
-            document.getElementById('customer-name').innerHTML = `👤 ${data.name}`;
-            document.getElementById('customer-points').innerText = data.points || 0;
-            document.getElementById('customer-info').style.display = 'block';
+            const customerName = getElement('customer-name');
+            const customerPoints = getElement('customer-points');
+            const customerInfo = getElement('customer-info');
+            if (customerName) customerName.innerHTML = `👤 ${data.name}`;
+            if (customerPoints) customerPoints.innerText = data.points || 0;
+            if (customerInfo) customerInfo.style.display = 'block';
         } else {
             selectedCustomer = null;
-            document.getElementById('customer-info').style.display = 'none';
+            const customerInfo = getElement('customer-info');
+            if (customerInfo) customerInfo.style.display = 'none';
         }
     } catch (err) {
         console.error(err);
@@ -781,15 +805,22 @@ function setPaymentMethod(method, btnElement) {
     btnElement.classList.add('active');
 }
 
-// Print receipt with REAL Supabase UUID
 function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, pointsEarned, newPointsTotal) {
     const now = new Date();
     const dateStr = now.toLocaleDateString('lo-LA');
     const timeStr = now.toLocaleTimeString('lo-LA');
     
-    document.getElementById('receipt-datetime').innerHTML = `${dateStr} ${timeStr}`;
-    document.getElementById('receipt-order-id').innerHTML = shortOrderId;
-    document.getElementById('receipt-full-id').innerHTML = `ID: ${fullOrderId}`;
+    const datetimeEl = getElement('receipt-datetime');
+    const orderIdEl = getElement('receipt-order-id');
+    const fullIdEl = getElement('receipt-full-id');
+    const customerInfoEl = getElement('receipt-customer-info');
+    const itemsListEl = getElement('receipt-items-list');
+    const totalsEl = getElement('receipt-totals');
+    const pointsInfoEl = getElement('receipt-points-info');
+    
+    if (datetimeEl) datetimeEl.innerHTML = `${dateStr} ${timeStr}`;
+    if (orderIdEl) orderIdEl.innerHTML = shortOrderId;
+    if (fullIdEl) fullIdEl.innerHTML = `ID: ${fullOrderId}`;
     
     let customerHtml = '';
     if (selectedCustomer) {
@@ -798,7 +829,7 @@ function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, poin
             <div>ເບີໂທ: ${selectedCustomer.phone}</div>
         `;
     }
-    document.getElementById('receipt-customer-info').innerHTML = customerHtml;
+    if (customerInfoEl) customerInfoEl.innerHTML = customerHtml;
     
     const itemsHtml = cart.map(item => `
         <div style="display: flex; justify-content: space-between;">
@@ -806,7 +837,7 @@ function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, poin
             <span>${formatLAK(item.retail_price * item.qty)}</span>
         </div>
     `).join('');
-    document.getElementById('receipt-items-list').innerHTML = itemsHtml;
+    if (itemsListEl) itemsListEl.innerHTML = itemsHtml;
     
     let totalsHtml = `
         <div style="display: flex; justify-content: space-between;">
@@ -831,7 +862,7 @@ function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, poin
             <span>ຊຳລະດ້ວຍ:</span><span>${paymentMethod}</span>
         </div>
     `;
-    document.getElementById('receipt-totals').innerHTML = totalsHtml;
+    if (totalsEl) totalsEl.innerHTML = totalsHtml;
     
     let pointsHtml = '';
     if (selectedCustomer) {
@@ -842,7 +873,7 @@ function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, poin
     } else if (pointsEarned > 0) {
         pointsHtml = `<div>⭐ ຄະແນນທີ່ໄດ້ຮັບ: +${pointsEarned}</div>`;
     }
-    document.getElementById('receipt-points-info').innerHTML = pointsHtml;
+    if (pointsInfoEl) pointsInfoEl.innerHTML = pointsHtml;
     
     JsBarcode("#receipt-barcode", shortOrderId, {
         format: "CODE128",
@@ -855,31 +886,33 @@ function printReceipt(fullOrderId, shortOrderId, subtotal, tax, finalTotal, poin
     });
     
     setTimeout(() => {
-        const printContent = document.querySelector('.receipt-print').cloneNode(true);
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>ໃບຮັບເງິນ</title>
-                <style>
-                    @page { size: 80mm; margin: 0; }
-                    body { 
-                        font-family: 'Phetsarath', 'Noto Sans Lao', monospace;
-                        font-size: 12px;
-                        width: 80mm;
-                        margin: 0;
-                        padding: 8px;
-                        line-height: 1.4;
-                    }
-                    .receipt-print { width: 100%; }
-                </style>
-            </head>
-            <body>${printContent.outerHTML}</body>
-            </html>
-        `);
-        printWindow.print();
-        printWindow.close();
+        const printContent = document.querySelector('.receipt-print');
+        if (printContent) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>ໃບຮັບເງິນ</title>
+                    <style>
+                        @page { size: 80mm; margin: 0; }
+                        body { 
+                            font-family: 'Phetsarath', 'Noto Sans Lao', monospace;
+                            font-size: 12px;
+                            width: 80mm;
+                            margin: 0;
+                            padding: 8px;
+                            line-height: 1.4;
+                        }
+                        .receipt-print { width: 100%; }
+                    </style>
+                </head>
+                <body>${printContent.outerHTML}</body>
+                </html>
+            `);
+            printWindow.print();
+            printWindow.close();
+        }
     }, 100);
 }
 
@@ -889,9 +922,11 @@ async function processSale() {
         return;
     }
     
-    const btn = document.getElementById('btn-complete');
-    btn.disabled = true;
-    btn.innerHTML = '⏳ ກຳລັງດຳເນີນການ...';
+    const btn = getElement('btn-complete');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ ກຳລັງດຳເນີນການ...';
+    }
     
     try {
         const { subtotal, tax, total } = calculateTotals();
@@ -902,15 +937,19 @@ async function processSale() {
         if (paymentMethod === 'Cash') {
             const received = prompt(`ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, Math.ceil(finalTotal / 1000) * 1000);
             if (!received) {
-                btn.disabled = false;
-                btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+                }
                 return;
             }
             const change = parseFloat(received) - finalTotal;
             if (change < 0) {
                 showToast('ເງິນບໍ່ພໍ!', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+                }
                 return;
             }
             if (change > 0) {
@@ -973,8 +1012,10 @@ async function processSale() {
         selectedCustomer = null;
         appliedPoints = 0;
         currentDiscount = 0;
-        document.getElementById('customer-phone').value = '';
-        document.getElementById('customer-info').style.display = 'none';
+        const customerPhone = getElement('customer-phone');
+        const customerInfo = getElement('customer-info');
+        if (customerPhone) customerPhone.value = '';
+        if (customerInfo) customerInfo.style.display = 'none';
         drawCart();
         
         showToast(`ຊຳລະສຳເລັດ! ເລກທີບິນ: ${shortOrderId}`, 'success');
@@ -983,25 +1024,88 @@ async function processSale() {
         console.error('Sale error:', err);
         showToast(`ເກີດຂໍ້ຜິດພາດ: ${err.message || 'ກະລຸນາລອງໃໝ່'}`, 'error');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-        document.getElementById('barcode-input').focus();
+        const btn = getElement('btn-complete');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+        }
+        const barcodeInput = getElement('barcode-input');
+        if (barcodeInput) barcodeInput.focus();
     }
 }
 
-// Event listeners
-document.getElementById('customer-phone').addEventListener('input', searchCustomer);
+async function searchOrderByShortId(shortId) {
+    if (!shortId || shortId.length < 4) {
+        showToast('ກະລຸນາປ້ອນເລກທີບິນຢ່າງນ້ອຍ 4 ຕົວ', 'warning');
+        return null;
+    }
+    
+    const { data, error } = await window.supabaseClient
+        .from('pos_sales')
+        .select('*')
+        .ilike('id', `${shortId}%`)
+        .order('created_at', { ascending: false });
+    
+    if (error) {
+        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
+        return null;
+    }
+    
+    if (data.length === 0) {
+        showToast('ບໍ່ພົບບິນ', 'warning');
+        return null;
+    }
+    
+    return data;
+}
 
+window.searchOrderByShortId = searchOrderByShortId;
+
+// Setup event listeners
+function setupEventListeners() {
+    const customerPhone = getElement('customer-phone');
+    if (customerPhone) {
+        customerPhone.addEventListener('input', searchCustomer);
+    }
+    
+    const barcodeInput = getElement('barcode-input');
+    if (barcodeInput) {
+        barcodeInput.addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                await searchProduct(e.target.value);
+                e.target.value = '';
+            }
+        });
+    }
+}
+
+// Initialize
 function init() {
+    console.log('Initializing POS...');
+    
     if (!checkAuth()) return;
+    
     displayUserName();
     setupRoleBasedMenus();
     loadHoldBills();
     drawCart();
-    document.getElementById('barcode-input').focus();
+    
+    const barcodeInput = getElement('barcode-input');
+    if (barcodeInput) {
+        setTimeout(() => barcodeInput.focus(), 100);
+    }
 }
 
-init();
+// Wait for DOM to be ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setupEventListeners();
+        init();
+    });
+} else {
+    setupEventListeners();
+    init();
+}
 </script>
 
 </body>
