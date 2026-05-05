@@ -919,21 +919,39 @@ async function processSale() {
         
         // Cash payment with change
         if (paymentMethod === 'Cash') {
-            const received = prompt(`ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, Math.ceil(finalTotal / 1000) * 1000);
-            if (!received) {
-                btn.disabled = false;
-                btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-                return;
-            }
-            const change = parseFloat(received) - finalTotal;
-            if (change < 0) {
-                showToast('ເງິນບໍ່ພໍ!', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-                return;
-            }
-            if (change > 0) alert(`ເງິນທອນ: ${formatLAK(change)}`);
-        }
+    const defaultAmount = Math.ceil(finalTotal / 1000) * 1000;
+    const formattedDefault = defaultAmount.toLocaleString('lo-LA');
+    const received = prompt(
+        `ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, 
+        formattedDefault
+    );
+    
+    if (!received) {
+        btn.disabled = false;
+        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+        return;
+    }
+    
+    // Remove commas from input before parsing
+    const cashReceived = parseFloat(received.replace(/,/g, ''));
+    if (isNaN(cashReceived)) {
+        showToast('ກະລຸນາປ້ອນຈຳນວນເງິນ', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+        return;
+    }
+    
+    const change = cashReceived - finalTotal;
+    if (change < 0) {
+        showToast('ເງິນບໍ່ພໍ!', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+        return;
+    }
+    if (change > 0) {
+        showToast(`ເງິນທອນ: ${formatLAK(change)}`, 'info');
+    }
+}
         
         // VERIFY STOCK BEFORE DEDUCTING (Important!)
         for (const item of cart) {
