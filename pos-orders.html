@@ -429,65 +429,84 @@ async function processReturn(orderId) {
     }
     
     try {
+        console.log('Step 1: Fetching order data...');
         const { data: order, error } = await window.supabaseClient
             .from('pos_sales')
             .select('*')
             .eq('id', orderId)
             .single();
         
-        if (error) throw error;
+        if (error) {
+            console.error('Fetch error details:', error);
+            throw error;
+        }
+        
+        console.log('Order data retrieved:', order);
         
         // Check if already refunded
         if (order.status === 'Refunded' || order.status === 'REFUNDED') {
             showToast('ບິນນີ້ໄດ້ຄືນສິນຄ້າແລ້ວ', 'warning');
-            // Refresh to update button
             await searchOrder();
             return;
         }
         
         const items = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]');
+        console.log('Items to return:', items);
         
         // Restore inventory
         for (const item of items) {
-            const { data: product } = await window.supabaseClient
+            console.log(`Restoring ${item.name} x${item.qty}...`);
+            const { data: product, error: productError } = await window.supabaseClient
                 .from('pos_products')
                 .select('stock_qty')
                 .eq('barcode', item.barcode)
                 .single();
             
+            if (productError) {
+                console.error('Product fetch error:', productError);
+                continue;
+            }
+            
             if (product) {
-                await window.supabaseClient
+                const newStock = product.stock_qty + item.qty;
+                const { error: updateError } = await window.supabaseClient
                     .from('pos_products')
-                    .update({ stock_qty: product.stock_qty + item.qty })
+                    .update({ stock_qty: newStock })
                     .eq('barcode', item.barcode);
-                console.log(`✅ Restored ${item.qty} of ${item.name} to inventory`);
+                
+                if (updateError) {
+                    console.error('Update error:', updateError);
+                } else {
+                    console.log(`✅ Restored ${item.name}: ${product.stock_qty} → ${newStock}`);
+                }
             }
         }
         
         // Update order status to Refunded
         const cashierName = getCurrentUser().name || 'System';
+        console.log('Updating order status to Refunded...');
+        
         const { error: updateError } = await window.supabaseClient
             .from('pos_sales')
             .update({ status: 'Refunded', return_processed_by: cashierName })
             .eq('id', orderId);
         
-        if (updateError) throw updateError;
-        
-        showToast('ຄືນສິນຄ້າສຳເລັດ', 'success');
-        
-        // Refresh the search results to update the button (重要!)
-        // Clear the search input and re-search
-        const currentSearch = document.getElementById('search-input').value;
-        if (currentSearch) {
-            await searchOrder();
-        } else {
-            // If no search term, just reload the page or refresh
-            location.reload();
+        if (updateError) {
+            console.error('Update status error:', updateError);
+            throw updateError;
         }
         
+        console.log('✅ Return completed successfully!');
+        showToast('ຄືນສິນຄ້າສຳເລັດ', 'success');
+        
+        // Refresh the search results
+        await searchOrder();
+        
     } catch (err) {
-        console.error('Return error:', err);
-        showToast('ເກີດຂໍ້ຜິດພາດ: ' + err.message, 'error');
+        console.error('Return error details:', err);
+        console.error('Error message:', err.message);
+        console.error('Error code:', err.code);
+        showToast('ເກີດຂໍ້ຜິດພາດ: ' + (err.message || 'ກະລຸນາລອງໃໝ່'), 'error');
         
         // Re-enable button on error
         if (returnBtn) {
@@ -496,7 +515,6 @@ async function processReturn(orderId) {
         }
     }
 }
-
 // Event listener for Enter key
 document.getElementById('search-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') searchOrder();
