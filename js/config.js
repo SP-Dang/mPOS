@@ -8,9 +8,9 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // Create Supabase client (global)
 window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Business rules (global)
+// Business Rules
 window.TAX_RATE = 7;
-window.POINTS_RATE = 10000;
-window.POINTS_VALUE = 1000;
+window.POINTS_RATE = 6667;      // ~6,667 LAK = 1 point (20,000 LAK = 3 points)
+window.POINTS_VALUE = 100;       // 1 point = 100 LAK discount (100 points = 10,000 LAK)
 
 console.log('✅ Config loaded');
