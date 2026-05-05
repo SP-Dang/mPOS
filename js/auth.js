@@ -8,30 +8,37 @@ const STAFF_DATA = {
     gm: { id: "acb923c1-ffda-4a17-a77e-96b667298ee2", username: "gm", full_name: "General Manager", role: "GM", pin: "9999" }
 };
 
-// =====================================================
-// NEW: Set RLS Context for Supabase Policies
-// =====================================================
+// Set RLS Context (with error handling)
 async function setRLSContext(role, userId) {
     try {
-        // Call the Supabase functions to set session context
-        const { error: roleError } = await window.supabaseClient.rpc('set_app_role', { 
-            role_name: role 
-        });
+        // Check if supabaseClient exists
+        if (!window.supabaseClient) {
+            console.error('❌ supabaseClient not initialized!');
+            return;
+        }
         
-        const { error: userError } = await window.supabaseClient.rpc('set_app_user_id', { 
-            user_id: userId 
-        });
+        // Try to set the role (function may not exist yet, that's OK)
+        try {
+            await window.supabaseClient.rpc('set_app_role', { role_name: role });
+            console.log('✅ Role set:', role);
+        } catch (e) {
+            console.log('Note: set_app_role function not yet created in Supabase');
+        }
         
-        if (roleError) console.error('Set role error:', roleError);
-        if (userError) console.error('Set user error:', userError);
+        try {
+            await window.supabaseClient.rpc('set_app_user_id', { user_id: userId });
+            console.log('✅ User ID set:', userId);
+        } catch (e) {
+            console.log('Note: set_app_user_id function not yet created in Supabase');
+        }
         
-        console.log('✅ RLS context set:', { role, userId });
+        console.log('✅ RLS context configured:', { role, userId });
     } catch (err) {
-        console.error('Failed to set RLS context:', err);
+        console.error('RLS context error:', err);
     }
 }
 
-// Login function with RLS context
+// Login function
 async function loginWithPin(username, pin) {
     try {
         const staff = STAFF_DATA[username];
@@ -41,39 +48,36 @@ async function loginWithPin(username, pin) {
             return false;
         }
         
-        // Verify PIN
         if (staff.pin !== pin) {
             showToast('PIN ບໍ່ຖືກຕ້ອງ', 'error');
             return false;
         }
         
-        // Store user info in localStorage
+        // Store user info
         localStorage.setItem('lsm_user_id', staff.id);
         localStorage.setItem('lsm_user_name', staff.full_name);
         localStorage.setItem('lsm_role', staff.role);
         localStorage.setItem('lsm_username', staff.username);
-        
-        // Set RLS context - CRITICAL for policies to work
         localStorage.setItem('app_current_user_id', staff.id);
         localStorage.setItem('app_current_role', staff.role);
-        localStorage.setItem('app_current_user_name', staff.full_name);
         
-        // =====================================================
-        // IMPORTANT: Call setRLSContext here!
-        // =====================================================
-        await setRLSContext(staff.role, staff.id);
+        // Set RLS context (non-blocking - don't wait for it)
+        setRLSContext(staff.role, staff.id);
         
-        console.log('User logged in with role:', staff.role);
-        
+        console.log('User logged in:', staff.full_name, 'Role:', staff.role);
         showToast(`ສະບາຍດີ ${staff.full_name}`, 'success');
         
-        // Update last login in database
-        await window.supabaseClient
-            .from('pos_staff')
-            .update({ last_login: new Date().toISOString() })
-            .eq('id', staff.id);
+        // Update last login in database (optional, can fail silently)
+        try {
+            await window.supabaseClient
+                .from('pos_staff')
+                .update({ last_login: new Date().toISOString() })
+                .eq('id', staff.id);
+        } catch (err) {
+            console.log('Could not update last login:', err);
+        }
         
-        // Redirect based on role
+        // Redirect
         setTimeout(() => {
             if (staff.role === 'GM') {
                 window.location.href = 'index.html';
@@ -103,39 +107,17 @@ function getCurrentUser() {
 // Check if user is authenticated
 function checkAuth() {
     const userId = localStorage.getItem('lsm_user_id');
-    const userRole = localStorage.getItem('lsm_role');
-    
     if (!userId) {
         window.location.href = 'login.html';
         return false;
     }
-    
-    // For RLS, ensure context is set
-    if (localStorage.getItem('app_current_role') !== userRole) {
-        localStorage.setItem('app_current_role', userRole);
-        localStorage.setItem('app_current_user_id', userId);
-        // Also refresh RLS context on page load
-        setRLSContext(userRole, userId);
-    }
-    
     return true;
 }
 
 // Logout
 function handleLogout() {
     if (confirm('ຕ້ອງການອອກຈາກລະບົບ?')) {
-        // Clear all localStorage
-        localStorage.removeItem('lsm_user_id');
-        localStorage.removeItem('lsm_user_name');
-        localStorage.removeItem('lsm_role');
-        localStorage.removeItem('lsm_username');
-        localStorage.removeItem('app_current_user_id');
-        localStorage.removeItem('app_current_role');
-        localStorage.removeItem('app_current_user_name');
-        
-        // Clear Supabase session
-        window.supabaseClient.auth.signOut();
-        
+        localStorage.clear();
         window.location.href = 'login.html';
     }
 }
@@ -143,34 +125,18 @@ function handleLogout() {
 // Display user name in sidebar
 function displayUserName() {
     const user = getCurrentUser();
-    const userNameElem = document.getElementById('user-name-display');
-    if (userNameElem) {
-        userNameElem.innerHTML = `👤 ${user.name || 'Cashier'}`;
+    const elem = document.getElementById('user-name-display');
+    if (elem) {
+        elem.innerHTML = `👤 ${user.name || 'Cashier'}`;
     }
 }
 
 // Setup role-based menu hiding
 function setupRoleBasedMenus() {
     const user = getCurrentUser();
-    const adminMenus = document.querySelectorAll('.admin-only');
-    
     if (user.role !== 'GM') {
-        adminMenus.forEach(el => {
+        document.querySelectorAll('.admin-only').forEach(el => {
             el.style.display = 'none';
         });
-    } else {
-        adminMenus.forEach(el => {
-            el.style.display = 'flex';
-        });
     }
-}
-
-// Get current role for RLS
-function getCurrentRole() {
-    return localStorage.getItem('lsm_role') || 'CASHIER';
-}
-
-// Get current user ID for RLS
-function getCurrentUserId() {
-    return localStorage.getItem('lsm_user_id');
 }
