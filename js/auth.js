@@ -8,6 +8,29 @@ const STAFF_DATA = {
     gm: { id: "acb923c1-ffda-4a17-a77e-96b667298ee2", username: "gm", full_name: "General Manager", role: "GM", pin: "9999" }
 };
 
+// =====================================================
+// NEW: Set RLS Context for Supabase Policies
+// =====================================================
+async function setRLSContext(role, userId) {
+    try {
+        // Call the Supabase functions to set session context
+        const { error: roleError } = await window.supabaseClient.rpc('set_app_role', { 
+            role_name: role 
+        });
+        
+        const { error: userError } = await window.supabaseClient.rpc('set_app_user_id', { 
+            user_id: userId 
+        });
+        
+        if (roleError) console.error('Set role error:', roleError);
+        if (userError) console.error('Set user error:', userError);
+        
+        console.log('✅ RLS context set:', { role, userId });
+    } catch (err) {
+        console.error('Failed to set RLS context:', err);
+    }
+}
+
 // Login function with RLS context
 async function loginWithPin(username, pin) {
     try {
@@ -35,11 +58,11 @@ async function loginWithPin(username, pin) {
         localStorage.setItem('app_current_role', staff.role);
         localStorage.setItem('app_current_user_name', staff.full_name);
         
-        // For Supabase RLS, we need to set a session variable
-        await window.supabaseClient.auth.signOut(); // Clear any existing session
+        // =====================================================
+        // IMPORTANT: Call setRLSContext here!
+        // =====================================================
+        await setRLSContext(staff.role, staff.id);
         
-        // Set custom claims via localStorage for RLS policies
-        // RLS policies will read from this
         console.log('User logged in with role:', staff.role);
         
         showToast(`ສະບາຍດີ ${staff.full_name}`, 'success');
@@ -91,6 +114,8 @@ function checkAuth() {
     if (localStorage.getItem('app_current_role') !== userRole) {
         localStorage.setItem('app_current_role', userRole);
         localStorage.setItem('app_current_user_id', userId);
+        // Also refresh RLS context on page load
+        setRLSContext(userRole, userId);
     }
     
     return true;
