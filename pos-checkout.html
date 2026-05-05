@@ -837,16 +837,16 @@ function printReceipt(orderId, total, pointsEarned) {
         `;
     }
     
-    totalsHtml += `
-        <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px dashed #000; margin-top: 5px; padding-top: 5px;">
-            <span>ຍອດລວມ:</span>
-            <span>${formatLAK(finalTotal)}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-top: 3px;">
-            <span>ຊຳລະດ້ວຍ:</span>
-            <span>${paymentMethod}</span>
-        </div>
-    `;
+  totalsHtml += `
+    <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px dashed #000; margin-top: 5px; padding-top: 5px;">
+        <span>ຍອດລວມ:</span>
+        <span>${formatLAK(finalTotal)}</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; margin-top: 3px;">
+        <span>ຊຳລະດ້ວຍ:</span>
+        <span>${paymentMethod}</span>
+    </div>
+`;
     document.getElementById('receipt-totals').innerHTML = totalsHtml;
     
     // Points summary - NO LINE here, just text
