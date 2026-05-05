@@ -801,10 +801,10 @@ function printReceipt(orderId, total, pointsEarned) {
     
     // Items list with better formatting
     const itemsHtml = cart.map(item => `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
-            <div style="flex: 2;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 3px; text-align: left;">
+            <div style="flex: 2; text-align: left;">
                 <span>${item.name}</span>
-                <span style="font-size: 8px; color: #666;"> x${item.qty}</span>
+                <span style="font-size: 8px; color: #666; margin-left: 5px;">x${item.qty}</span>
             </div>
             <div style="text-align: right;">
                 ${formatLAK(item.retail_price * item.qty)}
