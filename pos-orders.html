@@ -267,35 +267,46 @@ function showToast(message, type) {
 }
 
 async function searchOrder() {
-    const searchText = document.getElementById('search-input').value.trim();
+    const searchText = document.getElementById('search-input').value.trim().toUpperCase();
     if (!searchText) {
         showToast('ກະລຸນາປ້ອນເລກທີບິນ', 'warning');
         return;
     }
     
     const container = document.getElementById('results-container');
-    container.innerHTML = '<div style="text-align: center; padding: 40px;">ກຳລັງຄົ້ນຫາ...</div>';
+    container.innerHTML = '<div style="text-align: center; padding: 40px;">⏳ ກຳລັງຄົ້ນຫາ...</div>';
     
     try {
-        // Convert UUID to text for searching using ::text
+        // Get ALL sales first (no filter on UUID)
         const { data, error } = await window.supabaseClient
             .from('pos_sales')
             .select('*')
-            .ilike('id::text', `${searchText}%`)
             .order('created_at', { ascending: false });
         
         if (error) throw error;
         
         if (!data || data.length === 0) {
-            container.innerHTML = '<div class="no-results">❌ ບໍ່ພົບຂໍ້ມູນບິນນີ້</div>';
+            container.innerHTML = '<div class="no-results">❌ ບໍ່ມີຂໍ້ມູນບິນ</div>';
             return;
         }
         
-        container.innerHTML = data.map(order => renderOrderCard(order)).join('');
+        // FILTER IN JAVASCRIPT - compare short ID (first 8 characters)
+        const filtered = data.filter(order => {
+            const shortId = order.id.substring(0, 8).toUpperCase();
+            return shortId.includes(searchText);
+        });
+        
+        if (filtered.length === 0) {
+            container.innerHTML = `<div class="no-results">❌ ບໍ່ພົບບິນທີ່ມີເລກທີ: ${searchText}</div>`;
+            return;
+        }
+        
+        container.innerHTML = filtered.map(order => renderOrderCard(order)).join('');
+        showToast(`ພົບ ${filtered.length} ລາຍການ`, 'success');
         
     } catch (err) {
-        console.error(err);
-        container.innerHTML = '<div class="no-results">❌ ເກີດຂໍ້ຜິດພາດ: ' + (err.message || 'ກະລຸນາລອງໃໝ່') + '</div>';
+        console.error('Search error:', err);
+        container.innerHTML = `<div class="no-results">❌ ເກີດຂໍ້ຜິດພາດ: ${err.message}</div>`;
     }
 }
     
@@ -305,7 +316,18 @@ function renderOrderCard(order) {
     const statusClass = isRefunded ? 'status-refunded' : 'status-completed';
     const statusText = isRefunded ? '🔄 ຄືນສິນຄ້າແລ້ວ' : '✅ ຊຳລະແລ້ວ';
     const date = new Date(order.created_at).toLocaleString('lo-LA');
-    const items = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]');
+    
+    // Handle items safely
+    let items = [];
+    if (Array.isArray(order.items)) {
+        items = order.items;
+    } else if (typeof order.items === 'string') {
+        try {
+            items = JSON.parse(order.items);
+        } catch (e) {
+            items = [];
+        }
+    }
     
     return `
         <div class="order-card" data-order-id="${order.id}">
@@ -319,12 +341,12 @@ function renderOrderCard(order) {
                 </div>
             </div>
             <div class="order-items">
-                ${items.map(item => `
+                ${items.length > 0 ? items.map(item => `
                     <div class="item-row">
                         <span>${item.name} <b>x${item.qty}</b></span>
                         <span>${formatLAK(item.retail_price * item.qty)}</span>
                     </div>
-                `).join('')}
+                `).join('') : '<div style="text-align: center; padding: 10px;">ບໍ່ມີລາຍການສິນຄ້າ</div>'}
             </div>
             <div class="order-total">
                 ລວມທັງໝົດ: ${formatLAK(order.total_amount)}
@@ -336,7 +358,7 @@ function renderOrderCard(order) {
         </div>
     `;
 }
-
+    
 async function reprintReceipt(orderId) {
     try {
         const { data, error } = await window.supabaseClient
