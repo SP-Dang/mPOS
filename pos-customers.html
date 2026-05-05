@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mPOS | ລູກຄ້າ</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --primary-light: #d1fae5;
+            --danger: #ef4444;
+            --sidebar: #0f172a;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --lao: 'Phetsarath', sans-serif;
+        }
+        body {
+            margin: 0;
+            display: flex;
+            background: var(--bg);
+            font-family: 'Plus Jakarta Sans', var(--lao);
+            height: 100vh;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar);
+            color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        .logo {
+            padding: 24px 20px;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--primary);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .nav-menu { flex: 1; padding: 20px; }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: #94a3b8;
+            text-decoration: none;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+        .nav-item.active { background: var(--primary); color: white; }
+        .admin-only { display: flex; }
+        .user-info { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .user-name { font-weight: 600; margin-bottom: 10px; font-size: 13px; }
+        .logout-btn {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: none;
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            text-align: left;
+        }
+        .main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h1 { font-size: 24px; color: var(--text); }
+        .add-btn {
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+        }
+        .search-box input {
+            padding: 10px 15px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            width: 250px;
+            outline: none;
+        }
+        .customers-table {
+            background: white;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            overflow: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            padding: 15px;
+            background: #f8fafc;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-light);
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        .points-badge {
+            background: var(--primary-light);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            font-size: 12px;
+        }
+        .delete-btn {
+            background: #fee2e2;
+            color: var(--danger);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 25px;
+            width: 400px;
+        }
+        .modal-content h3 { margin-bottom: 20px; }
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            outline: none;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .save-btn { background: var(--primary); color: white; }
+        .cancel-btn { background: #f1f5f9; color: var(--text); }
+        .toast {
+            position: fixed; bottom: 20px; right: 20px; padding: 12px 20px;
+            border-radius: 12px; color: white; font-weight: bold; z-index: 10000;
+            animation: slideIn 0.3s ease;
+        }
+        .toast-success { background: #10b981; }
+        .toast-error { background: #ef4444; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="sidebar">
+    <div class="logo"><span>⚡</span> mPOS</div>
+    <div class="nav-menu">
+        <a href="index.html" class="nav-item admin-only">📊 Dashboard</a>
+        <a href="pos-checkout.html" class="nav-item">🛒 ຂາຍສິນຄ້າ</a>
+        <a href="pos-inventory.html" class="nav-item admin-only">📦 ຄັງສິນຄ້າ</a>
+        <a href="pos-customers.html" class="nav-item active">👥 ລູກຄ້າ</a>
+        <a href="pos-orders.html" class="nav-item admin-only">📄 ປະຫວັດການສັ່ງຊື້</a>
+        <a href="pos-reports.html" class="nav-item admin-only">📊 ລາຍງານ</a>
+    </div>
+    <div class="user-info">
+        <div class="user-name" id="user-name-display">ກຳລັງໂຫຼດ...</div>
+        <button class="logout-btn" onclick="handleLogout()">🚪 ອອກຈາກລະບົບ</button>
+    </div>
+</nav>
+
+<main class="main">
+    <div class="header">
+        <h1>👥 ລູກຄ້າ</h1>
+        <div style="display: flex; gap: 10px;">
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="ຄົ້ນຫາເບີໂທ / ຊື່...">
+                <button onclick="searchCustomers()" style="padding: 10px 15px; background: var(--sidebar); color: white; border: none; border-radius: 12px; cursor: pointer;">🔍</button>
+            </div>
+            <button class="add-btn" onclick="openAddModal()">+ ເພີ່ມລູກຄ້າ</button>
+        </div>
+    </div>
+    
+    <div class="customers-table">
+        <table>
+            <thead>
+                <tr><th>ເບີໂທ</th><th>ຊື່ລູກຄ້າ</th><th>ຄະແນນ</th><th>ຍອດຊື້ລວມ</th><th>ວັນທີລົງທະບຽນ</th><th></th></tr>
+            </thead>
+            <tbody id="customers-list"></tbody>
+        </table>
+    </div>
+</main>
+
+<div id="customer-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="modal-title">ເພີ່ມລູກຄ້າໃໝ່</h3>
+        <input type="text" id="customer-phone" placeholder="ເບີໂທ (020xxxxxxxx) *">
+        <input type="text" id="customer-name" placeholder="ຊື່ລູກຄ້າ *">
+        <div class="modal-buttons">
+            <button class="save-btn" onclick="saveCustomer()">ບັນທຶກ</button>
+            <button class="cancel-btn" onclick="closeModal()">ຍົກເລີກ</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+
+<script>
+let allCustomers = [];
+
+function formatLAK(amount) {
+    return new Intl.NumberFormat('lo-LA').format(amount) + ' ₭';
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+async function loadCustomers() {
+    try {
+        const { data, error } = await window.supabaseClient
+            .from('pos_customers')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        allCustomers = data;
+        renderCustomers(allCustomers);
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+function renderCustomers(customers) {
+    const tbody = document.getElementById('customers-list');
+    if (customers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px;">ບໍ່ມີຂໍ້ມູນລູກຄ້າ</td></tr>';
+        return;
+    }
+    tbody.innerHTML = customers.map(c => `
+        <tr>
+            <td><b>${c.phone}</b></td>
+            <td>${c.name}</td>
+            <td><span class="points-badge">⭐ ${c.points || 0}</span></td>
+            <td>${formatLAK(c.total_spent || 0)}</td>
+            <td style="font-size: 12px; color: #64748b;">${new Date(c.created_at).toLocaleDateString('lo-LA')}</td>
+            <td><button class="delete-btn" onclick="deleteCustomer('${c.phone}')">ລຶບ</button></td>
+        </tr>
+    `).join('');
+}
+
+function searchCustomers() {
+    const keyword = document.getElementById('search-input').value.toLowerCase();
+    if (!keyword) {
+        renderCustomers(allCustomers);
+        return;
+    }
+    const filtered = allCustomers.filter(c => 
+        c.phone.includes(keyword) || 
+        c.name.toLowerCase().includes(keyword)
+    );
+    renderCustomers(filtered);
+}
+
+function openAddModal() {
+    document.getElementById('customer-phone').value = '';
+    document.getElementById('customer-name').value = '';
+    document.getElementById('customer-modal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('customer-modal').style.display = 'none';
+}
+
+async function saveCustomer() {
+    const phone = document.getElementById('customer-phone').value.trim();
+    const name = document.getElementById('customer-name').value.trim();
+    
+    if (!phone || !name) {
+        showToast('ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ', 'error');
+        return;
+    }
+    
+    if (!phone.match(/^020\d{8}$/)) {
+        showToast('ເບີໂທຕ້ອງຂຶ້ນຕົ້ນດ້ວຍ 020 ແລະ ມີ 10 ຕົວເລກ', 'error');
+        return;
+    }
+    
+    try {
+        const { error } = await window.supabaseClient
+            .from('pos_customers')
+            .insert([{ phone, name, points: 0, total_spent: 0 }]);
+        if (error) {
+            if (error.code === '23505') {
+                showToast('ເບີໂທນີ້ມີແລ້ວ', 'error');
+            } else {
+                throw error;
+            }
+            return;
+        }
+        showToast('ເພີ່ມລູກຄ້າສຳເລັດ', 'success');
+        closeModal();
+        loadCustomers();
+    } catch (err) {
+        console.error(err);
+        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
+    }
+}
+
+async function deleteCustomer(phone) {
+    if (!confirm('ຕ້ອງການລຶບລູກຄ້ານີ້?')) return;
+    try {
+        const { error } = await window.supabaseClient
+            .from('pos_customers')
+            .delete()
+            .eq('phone', phone);
+        if (error) throw error;
+        showToast('ລຶບລູກຄ້າສຳເລັດ', 'success');
+        loadCustomers();
+    } catch (err) {
+        console.error(err);
+        showToast('ລຶບບໍ່ສຳເລັດ', 'error');
+    }
+}
+
+document.getElementById('search-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') searchCustomers();
+});
+
+function init() {
+    if (!checkAuth()) return;
+    displayUserName();
+    loadCustomers();
+}
+
+init();
+</script>
+</body>
+</html>

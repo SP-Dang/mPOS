@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         :root {
             --primary: #10b981;
             --primary-dark: #059669;
@@ -22,6 +23,7 @@
             --border: #e2e8f0;
             --lao: 'Phetsarath', sans-serif;
         }
+        
         body {
             margin: 0;
             display: flex;
@@ -30,28 +32,25 @@
             height: 100vh;
             overflow: hidden;
         }
+        
         .sidebar {
             width: 260px;
             background: var(--sidebar);
             color: white;
             display: flex;
             flex-direction: column;
-            flex-shrink: 0;
         }
+        
         .logo {
             padding: 24px 20px;
             font-size: 22px;
             font-weight: 800;
             color: var(--primary);
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
-        .nav-menu {
-            flex: 1;
-            padding: 20px;
-        }
+        
+        .nav-menu { flex: 1; padding: 20px; }
+        
         .nav-item {
             display: flex;
             align-items: center;
@@ -61,27 +60,22 @@
             text-decoration: none;
             border-radius: 12px;
             margin-bottom: 8px;
-            transition: all 0.2s;
             font-weight: 600;
             font-size: 14px;
         }
-        .nav-item:hover {
-            background: rgba(255,255,255,0.05);
-            color: white;
-        }
-        .nav-item.active {
-            background: var(--primary);
-            color: white;
-        }
+        
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+        .nav-item.active { background: var(--primary); color: white; }
+        
+        .admin-only { display: flex; }
+        
         .user-info {
             padding: 20px;
             border-top: 1px solid rgba(255,255,255,0.1);
         }
-        .user-name {
-            font-weight: 600;
-            margin-bottom: 10px;
-            font-size: 13px;
-        }
+        
+        .user-name { font-weight: 600; margin-bottom: 10px; font-size: 13px; }
+        
         .logout-btn {
             background: rgba(239, 68, 68, 0.2);
             color: #f87171;
@@ -92,27 +86,50 @@
             cursor: pointer;
             font-weight: 600;
             text-align: left;
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
+        
         .main {
             flex: 1;
             overflow-y: auto;
             padding: 30px;
         }
+        
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 30px;
         }
+        
+        .header h1 { font-size: 28px; color: var(--text); }
+        
+        .online-badge {
+            background: var(--primary-light);
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: var(--primary-dark);
+            font-weight: 600;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
+        
         .stat-card {
             background: white;
             border-radius: 20px;
@@ -120,21 +137,22 @@
             border: 1px solid var(--border);
             transition: transform 0.2s;
         }
-        .stat-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
-        }
+        
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        
         .stat-label {
             font-size: 13px;
             color: var(--text-light);
             margin-bottom: 8px;
             font-weight: 600;
         }
+        
         .stat-value {
             font-size: 28px;
             font-weight: 800;
             color: var(--text);
         }
+        
         .chart-container {
             background: white;
             border-radius: 20px;
@@ -142,6 +160,9 @@
             border: 1px solid var(--border);
             margin-bottom: 30px;
         }
+        
+        .chart-container h3 { margin-bottom: 20px; font-size: 16px; }
+        
         .closing-banner {
             background: linear-gradient(135deg, var(--sidebar), #1e293b);
             border-radius: 20px;
@@ -153,6 +174,7 @@
             flex-wrap: wrap;
             gap: 15px;
         }
+        
         .btn-close-day {
             background: var(--primary);
             border: none;
@@ -163,10 +185,98 @@
             cursor: pointer;
             font-family: inherit;
         }
-        @media print {
-            body * { visibility: hidden; }
-            #print-section, #print-section * { visibility: visible; }
-            #print-section { position: absolute; top: 0; left: 0; width: 100%; }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 25px;
+            width: 420px;
+        }
+        
+        .modal-content h3 { margin-bottom: 20px; }
+        
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            outline: none;
+        }
+        
+        .summary-box {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 15px 0;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .save-btn { background: var(--primary); color: white; }
+        .cancel-btn { background: #f1f5f9; color: var(--text); }
+        
+        .variance {
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+        
+        .variance-positive { background: #fef3c7; color: #b45309; }
+        .variance-negative { background: #fee2e2; color: #b91c1c; }
+        .variance-zero { background: #d1fae5; color: #065f46; }
+        
+        .toast {
+            position: fixed; bottom: 20px; right: 20px; padding: 12px 20px;
+            border-radius: 12px; color: white; font-weight: bold; z-index: 10000;
+            animation: slideIn 0.3s ease;
+        }
+        .toast-success { background: #10b981; }
+        .toast-error { background: #ef4444; }
+        .toast-warning { background: #f59e0b; }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
         }
     </style>
 </head>
@@ -177,14 +287,14 @@
     <div class="nav-menu">
         <a href="index.html" class="nav-item active">📊 Dashboard</a>
         <a href="pos-checkout.html" class="nav-item">🛒 ຂາຍສິນຄ້າ</a>
-        <a href="pos-orders.html" class="nav-item" id="nav-orders">📄 ປະຫວັດການສັ່ງຊື້</a>
-        <a href="pos-inventory.html" class="nav-item" id="nav-inventory">📦 ຄັງສິນຄ້າ</a>
+        <a href="pos-inventory.html" class="nav-item admin-only">📦 ຄັງສິນຄ້າ</a>
         <a href="pos-customers.html" class="nav-item">👥 ລູກຄ້າ</a>
-        <a href="pos-reports.html" class="nav-item" id="nav-reports">📊 ລາຍງານ</a>
+        <a href="pos-orders.html" class="nav-item admin-only">📄 ປະຫວັດການສັ່ງຊື້</a>
+        <a href="pos-reports.html" class="nav-item admin-only">📊 ລາຍງານ</a>
     </div>
     <div class="user-info">
         <div class="user-name" id="user-name-display">ກຳລັງໂຫຼດ...</div>
-        <button class="logout-btn" onclick="logout()">🚪 ອອກຈາກລະບົບ</button>
+        <button class="logout-btn" onclick="handleLogout()">🚪 ອອກຈາກລະບົບ</button>
     </div>
 </nav>
 
@@ -194,8 +304,9 @@
             <h1>Dashboard</h1>
             <p id="date-display" style="color: var(--text-light); margin-top: 5px;"></p>
         </div>
-        <div style="background: var(--primary-light); padding: 8px 16px; border-radius: 20px; color: var(--primary-dark); font-weight: 600;">
-            🟢 ລະບົບປົກກະຕິ
+        <div class="online-badge">
+            <span class="online-dot"></span>
+            ລະບົບປົກກະຕິ
         </div>
     </div>
     
@@ -219,62 +330,259 @@
     </div>
     
     <div class="chart-container">
-        <h3 style="margin-bottom: 15px;">ສະຖິຕິການຂາຍ 7 ວັນຍ້ອນຫຼັງ</h3>
+        <h3>📊 ສະຖິຕິການຂາຍ 7 ວັນຍ້ອນຫຼັງ</h3>
         <canvas id="sales-chart" height="80"></canvas>
     </div>
     
     <div class="closing-banner">
         <div>
-            <h3 style="margin-bottom: 5px;">ປິດຍອດປະຈຳວັນ</h3>
+            <h3>📋 ປິດຍອດປະຈຳວັນ</h3>
             <p style="opacity: 0.8; font-size: 13px;">ກວດສອບ ແລະ ບັນທຶກລາຍງານການເງິນ</p>
         </div>
-        <button class="btn-close-day" onclick="alert('Daily closing feature - will be implemented with Supabase')">📊 ສະຫຼຸບ ແລະ ປິດຍອດ</button>
+        <button class="btn-close-day" onclick="openClosingModal()">📊 ສະຫຼຸບ ແລະ ປິດຍອດ</button>
     </div>
 </main>
+
+<!-- Daily Closing Modal -->
+<div id="closing-modal" class="modal">
+    <div class="modal-content">
+        <h3>ສະຫຼຸບການປິດຍອດ</h3>
+        <div class="summary-box" id="modal-summary"></div>
+        <input type="number" id="actual-cash" placeholder="ເງິນສົດທີ່ນັບໄດ້ແທ້" step="1000">
+        <input type="number" id="actual-transfer" placeholder="ເງິນໂອນທີ່ກວດສອບແທ້" step="1000">
+        <div id="variance-display" class="variance"></div>
+        <div class="modal-buttons">
+            <button class="save-btn" onclick="submitClosing()">ຢືນຢັນການບັນທຶກ</button>
+            <button class="cancel-btn" onclick="closeModal()">ຍົກເລີກ</button>
+        </div>
+    </div>
+</div>
 
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/auth.js"></script>
 
 <script>
-    // Set date display
+let salesChart = null;
+let todayStats = { total: 0, count: 0, cash: 0, transfer: 0 };
+
+function formatLAK(amount) {
+    return new Intl.NumberFormat('lo-LA').format(amount) + ' ₭';
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+async function loadDashboard() {
+    const today = new Date().toISOString().split('T')[0];
     document.getElementById('date-display').innerHTML = new Date().toLocaleDateString('lo-LA', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
     });
     
-    // Load user info
-    const user = getCurrentUser();
-    document.getElementById('user-name-display').innerHTML = `👤 ${user.name || 'Admin'}`;
-    
-    // Show/hide admin menu
-    if (user.role !== 'GM' && user.role !== 'MANAGER') {
-        document.getElementById('nav-inventory').style.display = 'none';
-        document.getElementById('nav-reports').style.display = 'none';
-        document.getElementById('nav-orders').style.display = 'none';
+    try {
+        // Today's sales
+        const { data: sales, error: salesError } = await window.supabaseClient
+            .from('pos_sales')
+            .select('total_amount, payment_method')
+            .gte('created_at', `${today}T00:00:00`)
+            .lte('created_at', `${today}T23:59:59`)
+            .eq('status', 'COMPLETED');
+        
+        if (!salesError && sales) {
+            todayStats = sales.reduce((acc, s) => {
+                acc.total += s.total_amount || 0;
+                acc.count++;
+                if (s.payment_method === 'Cash') acc.cash += s.total_amount || 0;
+                else acc.transfer += s.total_amount || 0;
+                return acc;
+            }, { total: 0, count: 0, cash: 0, transfer: 0 });
+            
+            document.getElementById('today-sales').innerHTML = formatLAK(todayStats.total);
+            document.getElementById('today-orders').innerHTML = todayStats.count;
+        }
+        
+        // Low stock count
+        const { count: lowStockCount } = await window.supabaseClient
+            .from('pos_products')
+            .select('*', { count: 'exact', head: true })
+            .lte('stock_qty', 'min_stock');
+        document.getElementById('low-stock').innerHTML = lowStockCount || 0;
+        
+        // Total customers
+        const { count: customerCount } = await window.supabaseClient
+            .from('pos_customers')
+            .select('*', { count: 'exact', head: true });
+        document.getElementById('total-customers').innerHTML = customerCount || 0;
+        
+        // Load chart
+        await loadChart();
+        
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function loadChart() {
+    try {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const startDate = sevenDaysAgo.toISOString().split('T')[0];
+        
+        const { data, error } = await window.supabaseClient
+            .from('pos_sales')
+            .select('created_at, total_amount')
+            .gte('created_at', `${startDate}T00:00:00`)
+            .eq('status', 'COMPLETED')
+            .order('created_at');
+        
+        if (error) throw error;
+        
+        const dailySales = {};
+        for (let i = 0; i < 7; i++) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            dailySales[dateStr] = 0;
+        }
+        
+        data.forEach(sale => {
+            const dateStr = sale.created_at.split('T')[0];
+            if (dailySales[dateStr] !== undefined) {
+                dailySales[dateStr] += sale.total_amount;
+            }
+        });
+        
+        const sortedDates = Object.keys(dailySales).sort();
+        const chartData = sortedDates.map(d => dailySales[d]);
+        const chartLabels = sortedDates.map(d => {
+            const date = new Date(d);
+            return date.toLocaleDateString('lo-LA', { weekday: 'short' });
+        });
+        
+        if (salesChart) salesChart.destroy();
+        const ctx = document.getElementById('sales-chart').getContext('2d');
+        salesChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'ຍອດຂາຍ (₭)',
+                    data: chartData,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: { y: { ticks: { callback: (value) => formatLAK(value) } } }
+            }
+        });
+        
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+function openClosingModal() {
+    if (todayStats.count === 0) {
+        showToast('ມື້ນີ້ຍັງບໍ່ມີຍອດຂາຍ, ບໍ່ສາມາດປິດຍອດໄດ້', 'warning');
+        return;
     }
     
-    // Sample chart data
-    const ctx = document.getElementById('sales-chart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['ຈັນ', 'ອັງຄານ', 'ພຸດ', 'ພະຫັດ', 'ສຸກ', 'ເສົາ', 'ອາທິດ'],
-            datasets: [{
-                label: 'ຍອດຂາຍ (₭)',
-                data: [1250000, 2300000, 1980000, 3420000, 2870000, 4150000, 0],
-                borderColor: '#10b981',
-                backgroundColor: 'rgba(16, 185, 129, 0.05)',
-                tension: 0.4,
-                fill: true
-            }]
+    document.getElementById('modal-summary').innerHTML = `
+        <div class="summary-row"><span>ຍອດລວມໃນລະບົບ:</span><b>${formatLAK(todayStats.total)}</b></div>
+        <div class="summary-row"><span>ເງິນສົດໃນລະບົບ:</span>${formatLAK(todayStats.cash)}</div>
+        <div class="summary-row"><span>ເງິນໂອນໃນລະບົບ:</span>${formatLAK(todayStats.transfer)}</div>
+    `;
+    document.getElementById('actual-cash').value = todayStats.cash;
+    document.getElementById('actual-transfer').value = todayStats.transfer;
+    document.getElementById('closing-modal').style.display = 'flex';
+    updateVariance();
+}
+
+function closeModal() {
+    document.getElementById('closing-modal').style.display = 'none';
+}
+
+function updateVariance() {
+    const actualCash = parseFloat(document.getElementById('actual-cash').value) || 0;
+    const actualTransfer = parseFloat(document.getElementById('actual-transfer').value) || 0;
+    const variance = (actualCash + actualTransfer) - todayStats.total;
+    const varianceDiv = document.getElementById('variance-display');
+    
+    varianceDiv.innerHTML = `ສ່ວນຕ່າງ: ${formatLAK(variance)}`;
+    if (variance === 0) {
+        varianceDiv.className = 'variance variance-zero';
+    } else if (variance < 0) {
+        varianceDiv.className = 'variance variance-negative';
+    } else {
+        varianceDiv.className = 'variance variance-positive';
+    }
+}
+
+async function submitClosing() {
+    const actualCash = parseFloat(document.getElementById('actual-cash').value) || 0;
+    const actualTransfer = parseFloat(document.getElementById('actual-transfer').value) || 0;
+    const user = getCurrentUser();
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { error } = await window.supabaseClient
+        .from('pos_daily_reports')
+        .insert([{
+            report_date: today,
+            total_orders_count: todayStats.count,
+            system_total_amount: todayStats.total,
+            system_cash_amount: todayStats.cash,
+            system_transfer_amount: todayStats.transfer,
+            actual_cash_amount: actualCash,
+            actual_transfer_amount: actualTransfer,
+            variance: (actualCash + actualTransfer) - todayStats.total,
+            closed_by: user.name
+        }]);
+    
+    if (error) {
+        if (error.code === '23505') {
+            showToast('ມື້ນີ້ໄດ້ປິດຍອດໄປແລ້ວ', 'warning');
+        } else {
+            showToast('ເກີດຂໍ້ຜິດພາດ: ' + error.message, 'error');
         }
-    });
+    } else {
+        showToast('ບັນທຶກການປິດຍອດສຳເລັດ!', 'success');
+        closeModal();
+        loadDashboard();
+    }
+}
+
+document.getElementById('actual-cash').addEventListener('input', updateVariance);
+document.getElementById('actual-transfer').addEventListener('input', updateVariance);
+
+function init() {
+    const user = getCurrentUser();
+    if (!user.id) {
+        window.location.href = 'login.html';
+        return;
+    }
+    if (user.role !== 'GM') {
+        window.location.href = 'pos-checkout.html';
+        return;
+    }
+    displayUserName();
+    loadDashboard();
+}
+
+init();
 </script>
-     <script src="js/config.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/auth.js"></script>
 </body>
 </html>
