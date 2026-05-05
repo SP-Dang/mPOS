@@ -11,9 +11,14 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
             --primary: #10b981;
+            --primary-dark: #059669;
+            --primary-light: #d1fae5;
+            --danger: #ef4444;
+            --warning: #f59e0b;
             --sidebar: #0f172a;
             --bg: #f8fafc;
             --text: #1e293b;
+            --text-light: #64748b;
             --border: #e2e8f0;
             --lao: 'Phetsarath', sans-serif;
         }
@@ -107,6 +112,40 @@
             border-radius: 12px;
             cursor: pointer;
         }
+        
+        /* Hold Bills Panel */
+        .hold-panel {
+            background: white;
+            border-radius: 16px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border);
+            display: none;
+        }
+        .hold-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .hold-header h3 { font-size: 13px; color: var(--text-light); }
+        .hold-header button { background: none; border: none; cursor: pointer; font-size: 16px; }
+        .hold-bills { display: flex; gap: 8px; flex-wrap: wrap; }
+        .hold-bill-item {
+            background: var(--primary-light);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--primary-dark);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .hold-bill-item:hover { background: var(--primary); color: white; }
+        .hold-bill-item button { background: none; border: none; cursor: pointer; color: inherit; }
+        
         .cart-table-container {
             flex: 1;
             overflow-y: auto;
@@ -140,7 +179,7 @@
         .remove-btn {
             background: none;
             border: none;
-            color: #ef4444;
+            color: var(--danger);
             cursor: pointer;
             font-size: 18px;
         }
@@ -153,12 +192,12 @@
             padding: 20px;
         }
         .loyalty-box {
-            background: #d1fae5;
+            background: var(--primary-light);
             border-radius: 16px;
             padding: 15px;
             margin-bottom: 20px;
         }
-        .loyalty-box label { font-size: 12px; font-weight: 700; color: #065f46; display: block; margin-bottom: 8px; }
+        .loyalty-box label { font-size: 12px; font-weight: 700; color: var(--primary-dark); display: block; margin-bottom: 8px; }
         .loyalty-input {
             width: 100%;
             padding: 10px;
@@ -170,7 +209,7 @@
         .customer-info {
             margin-top: 10px;
             padding-top: 10px;
-            border-top: 1px dashed #10b981;
+            border-top: 1px dashed var(--primary);
             font-size: 13px;
         }
         .payment-methods {
@@ -189,8 +228,8 @@
         }
         .pay-btn.active {
             border-color: var(--primary);
-            background: #d1fae5;
-            color: #059669;
+            background: var(--primary-light);
+            color: var(--primary-dark);
         }
         .total-card {
             background: var(--sidebar);
@@ -202,9 +241,10 @@
         .total-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
         .grand-total { font-size: 24px; font-weight: 800; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); }
         .action-buttons { display: flex; gap: 10px; margin-bottom: 10px; }
-        .btn-clear { flex: 1; background: #ef4444; color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 700; cursor: pointer; }
-        .btn-complete { width: 100%; background: #10b981; color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 800; font-size: 16px; cursor: pointer; }
-        .empty-cart { text-align: center; padding: 60px; color: #64748b; }
+        .btn-hold { flex: 1; background: var(--warning); color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+        .btn-clear { flex: 1; background: var(--danger); color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+        .btn-complete { width: 100%; background: var(--primary); color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 800; font-size: 16px; cursor: pointer; }
+        .empty-cart { text-align: center; padding: 60px; color: var(--text-light); }
         
         /* Receipt Print */
         @media print {
@@ -220,6 +260,24 @@
                 font-size: 11px;
             }
             @page { size: 72mm auto; margin: 0mm; }
+        }
+        
+        .toast {
+            position: fixed; bottom: 20px; right: 20px; padding: 12px 20px;
+            border-radius: 12px; color: white; font-weight: bold; z-index: 10000;
+            animation: slideIn 0.3s ease;
+        }
+        .toast-success { background: #10b981; }
+        .toast-error { background: #ef4444; }
+        .toast-warning { background: #f59e0b; }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
         }
     </style>
 </head>
@@ -250,6 +308,15 @@
             </div>
         </div>
         
+        <!-- Hold Bills Panel -->
+        <div class="hold-panel" id="hold-panel">
+            <div class="hold-header">
+                <h3>📋 ບິນທີ່ຖືໄວ້ (Hold Bills)</h3>
+                <button onclick="toggleHoldPanel()">✕</button>
+            </div>
+            <div class="hold-bills" id="hold-bills-list"></div>
+        </div>
+        
         <div class="cart-table-container">
             <table class="cart-table">
                 <thead><tr><th>ສິນຄ້າ</th><th>ລາຄາ</th><th>ຈຳນວນ</th><th>ລວມ</th><th></th></tr></thead>
@@ -267,7 +334,7 @@
             <div id="customer-info" style="display: none;" class="customer-info">
                 <div id="customer-name"></div>
                 <div>⭐ ຄະແນນ: <span id="customer-points">0</span></div>
-                <button onclick="applyPoints()" style="margin-top: 8px; padding: 5px 10px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 11px;">ໃຊ້ຄະແນນ</button>
+                <button onclick="applyPoints()" style="margin-top: 8px; padding: 5px 10px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 11px;">ໃຊ້ຄະແນນ</button>
             </div>
         </div>
         
@@ -284,6 +351,7 @@
         </div>
         
         <div class="action-buttons">
+            <button class="btn-hold" onclick="holdBill()">📌 ຖືບິນ (Hold)</button>
             <button class="btn-clear" onclick="clearCart()">🗑️ ລຶບທັງໝົດ</button>
         </div>
         <button class="btn-complete" onclick="processSale()">✅ ສຳເລັດການຂາຍ</button>
@@ -320,7 +388,7 @@
 <!-- PAGE-SPECIFIC CODE -->
 <script>
 // =====================================================
-// POS CHECKOUT - PAGE SPECIFIC CODE
+// POS CHECKOUT - FULL FEATURES (Hold Bill, Stock Validation)
 // =====================================================
 
 // State
@@ -329,19 +397,21 @@ let selectedCustomer = null;
 let paymentMethod = "Cash";
 let appliedPoints = 0;
 let currentDiscount = 0;
+let holdBills = [];
 
-// Calculate totals (uses shared calculateCartTotals)
+// Calculate totals
 function calculateTotals() {
-    return calculateCartTotals(cart, window.TAX_RATE);
+    const subtotal = cart.reduce((sum, item) => sum + (item.retail_price * item.qty), 0);
+    const tax = subtotal * window.TAX_RATE / 100;
+    const total = subtotal + tax - currentDiscount;
+    return { subtotal, tax, total };
 }
 
 function updateDisplay() {
     const { subtotal, tax, total } = calculateTotals();
-    const finalTotal = total - currentDiscount;
-    
     document.getElementById('subtotal-display').innerHTML = formatLAK(subtotal);
     document.getElementById('tax-display').innerHTML = formatLAK(tax);
-    document.getElementById('grand-total').innerHTML = formatLAK(finalTotal);
+    document.getElementById('grand-total').innerHTML = formatLAK(total);
     
     if (currentDiscount > 0) {
         document.getElementById('discount-row').style.display = 'flex';
@@ -363,7 +433,7 @@ function drawCart() {
     
     tbody.innerHTML = cart.map((item, idx) => `
         <tr>
-            <td><div class="item-name">${item.name}</div><div class="item-barcode">${item.barcode}</div></td>
+            <td><div class="item-name">${item.name}</div><div class="item-barcode">${item.barcode}</div><div style="font-size:10px; color:#64748b;">ຄັງ: ${item.stock_qty}</div></td>
             <td>${formatLAK(item.retail_price)}</td>
             <td><div class="qty-control"><button class="qty-btn" onclick="adjustQuantity(${idx}, -1)">-</button><span>${item.qty}</span><button class="qty-btn" onclick="adjustQuantity(${idx}, 1)">+</button></div></td>
             <td>${formatLAK(item.retail_price * item.qty)}</td>
@@ -377,9 +447,17 @@ function adjustQuantity(idx, delta) {
     const newQty = cart[idx].qty + delta;
     if (newQty < 1) {
         cart.splice(idx, 1);
-    } else {
-        cart[idx].qty = newQty;
+        drawCart();
+        return;
     }
+    
+    // Check stock before increasing quantity
+    if (delta > 0 && newQty > cart[idx].stock_qty) {
+        showToast(`ສິນຄ້າເຫຼືອພຽງ ${cart[idx].stock_qty} ຊິ້ນ`, 'warning');
+        return;
+    }
+    
+    cart[idx].qty = newQty;
     drawCart();
 }
 
@@ -399,9 +477,130 @@ function clearCart() {
     }
 }
 
+// =====================================================
+// HOLD BILL FUNCTIONS
+// =====================================================
+
+function loadHoldBills() {
+    const saved = localStorage.getItem('lsm_hold_bills');
+    if (saved) {
+        holdBills = JSON.parse(saved);
+        updateHoldPanel();
+    }
+}
+
+function saveHoldBills() {
+    localStorage.setItem('lsm_hold_bills', JSON.stringify(holdBills));
+    updateHoldPanel();
+}
+
+function updateHoldPanel() {
+    const panel = document.getElementById('hold-panel');
+    const container = document.getElementById('hold-bills-list');
+    
+    if (!panel || !container) return;
+    
+    if (holdBills.length > 0) {
+        panel.style.display = 'block';
+        container.innerHTML = holdBills.map((bill, idx) => `
+            <div class="hold-bill-item" onclick="loadHoldBill(${idx})">
+                <span>📌 ${bill.name}</span>
+                <span>${formatLAK(bill.total)}</span>
+                <button onclick="event.stopPropagation(); removeHoldBill(${idx})">✕</button>
+            </div>
+        `).join('');
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+function toggleHoldPanel() {
+    const panel = document.getElementById('hold-panel');
+    if (panel) {
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function holdBill() {
+    if (cart.length === 0) {
+        showToast('ບໍ່ມີສິນຄ້າໃນລາຍການ', 'warning');
+        return;
+    }
+    
+    const name = prompt('ປ້ອນຊື່ລູກຄ້າ:', `ບິນ ${holdBills.length + 1}`);
+    const { total } = calculateTotals();
+    
+    holdBills.push({
+        id: Date.now(),
+        name: name || `ບິນ ${holdBills.length + 1}`,
+        cart: JSON.parse(JSON.stringify(cart)),
+        customer: selectedCustomer,
+        paymentMethod: paymentMethod,
+        total: total
+    });
+    
+    saveHoldBills();
+    cart = [];
+    selectedCustomer = null;
+    appliedPoints = 0;
+    currentDiscount = 0;
+    document.getElementById('customer-phone').value = '';
+    document.getElementById('customer-info').style.display = 'none';
+    drawCart();
+    showToast(`ຖືບິນ "${name}" ສຳເລັດ`, 'success');
+}
+
+function loadHoldBill(index) {
+    const bill = holdBills[index];
+    if (!bill) return;
+    
+    if (cart.length > 0 && !confirm('ຕ້ອງການໂຫຼດບິນທີ່ຖືໄວ້? ລາຍການປະຈຸບັນຈະຖືກຍົກເລີກ')) {
+        return;
+    }
+    
+    cart = JSON.parse(JSON.stringify(bill.cart));
+    selectedCustomer = bill.customer;
+    paymentMethod = bill.paymentMethod || 'Cash';
+    
+    drawCart();
+    updatePaymentMethodUI();
+    
+    if (selectedCustomer) {
+        document.getElementById('customer-phone').value = selectedCustomer.phone;
+        displayCustomerInfo(selectedCustomer);
+    }
+    
+    holdBills.splice(index, 1);
+    saveHoldBills();
+    showToast(`ໂຫຼດບິນ "${bill.name}" ສຳເລັດ`, 'success');
+}
+
+function removeHoldBill(index) {
+    if (confirm('ຕ້ອງການລຶບບິນນີ້?')) {
+        holdBills.splice(index, 1);
+        saveHoldBills();
+        showToast('ລຶບສຳເລັດ', 'success');
+    }
+}
+
+function updatePaymentMethodUI() {
+    document.querySelectorAll('.pay-btn').forEach(btn => {
+        if (btn.innerText.includes(paymentMethod)) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+// =====================================================
+// PRODUCT & CUSTOMER FUNCTIONS
+// =====================================================
+
 async function searchProduct(barcode) {
     if (!barcode.trim()) return;
     
+    // Stock validation - check current stock before adding
     try {
         const { data, error } = await window.supabaseClient
             .from('pos_products')
@@ -414,7 +613,15 @@ async function searchProduct(barcode) {
             return;
         }
         
+        // Check if adding 1 more would exceed stock
         const existing = cart.find(i => i.barcode === data.barcode);
+        const currentQtyInCart = existing ? existing.qty : 0;
+        
+        if (currentQtyInCart + 1 > data.stock_qty) {
+            showToast(`ສິນຄ້າເຫຼືອພຽງ ${data.stock_qty} ຊິ້ນ`, 'warning');
+            return;
+        }
+        
         if (existing) {
             existing.qty++;
         } else {
@@ -454,9 +661,7 @@ async function searchCustomer() {
         
         if (data) {
             selectedCustomer = data;
-            document.getElementById('customer-name').innerHTML = `👤 ${data.name}`;
-            document.getElementById('customer-points').innerText = data.points || 0;
-            document.getElementById('customer-info').style.display = 'block';
+            displayCustomerInfo(data);
         } else {
             selectedCustomer = null;
             document.getElementById('customer-info').style.display = 'none';
@@ -465,6 +670,12 @@ async function searchCustomer() {
         selectedCustomer = null;
         document.getElementById('customer-info').style.display = 'none';
     }
+}
+
+function displayCustomerInfo(customer) {
+    document.getElementById('customer-name').innerHTML = `👤 ${customer.name}`;
+    document.getElementById('customer-points').innerText = customer.points || 0;
+    document.getElementById('customer-info').style.display = 'block';
 }
 
 function setPaymentMethod(method, btn) {
@@ -480,7 +691,7 @@ async function applyPoints() {
     }
     
     const { subtotal, tax } = calculateTotals();
-    const maxPointsValue = Math.floor((subtotal + tax) / 1000);
+    const maxPointsValue = Math.floor((subtotal + tax) / window.POINTS_VALUE);
     const availablePoints = Math.min(selectedCustomer.points, maxPointsValue);
     
     if (availablePoints <= 0) {
@@ -492,11 +703,15 @@ async function applyPoints() {
     
     if (pointsToUse && !isNaN(pointsToUse) && pointsToUse > 0) {
         appliedPoints = Math.min(parseInt(pointsToUse), availablePoints);
-        currentDiscount = appliedPoints * 1000;
+        currentDiscount = appliedPoints * window.POINTS_VALUE;
         updateDisplay();
         showToast(`ໃຊ້ ${appliedPoints} ຄະແນນ, ຫຼຸດ ${formatLAK(currentDiscount)}`, 'success');
     }
 }
+
+// =====================================================
+// RECEIPT & SALE FUNCTIONS
+// =====================================================
 
 function printReceipt(orderId, total, pointsEarned) {
     const now = new Date();
@@ -532,8 +747,9 @@ function printReceipt(orderId, total, pointsEarned) {
     
     let pointsHtml = '';
     if (selectedCustomer) {
+        const newPointsTotal = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
         pointsHtml = `<div>⭐ ຄະແນນທີ່ໄດ້: +${pointsEarned}</div>
-                      <div>⭐ ຄະແນນທັງໝົດ: ${(selectedCustomer.points || 0) + pointsEarned - appliedPoints}</div>`;
+                      <div>⭐ ຄະແນນທັງໝົດ: ${newPointsTotal}</div>`;
     }
     document.getElementById('receipt-points-info').innerHTML = pointsHtml;
     
@@ -560,11 +776,12 @@ async function processSale() {
     
     try {
         const { subtotal, tax, total } = calculateTotals();
-        const finalTotal = total - currentDiscount;
+        const finalTotal = total;
         const cashierName = getCurrentUser().name || 'Cashier';
-        const pointsEarned = Math.floor(finalTotal / 10000);
+        const pointsEarned = Math.floor(finalTotal / window.POINTS_RATE);
         const invoiceNumber = generateInvoiceNumber();
         
+        // Cash payment with change
         if (paymentMethod === 'Cash') {
             const received = prompt(`ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, Math.ceil(finalTotal / 1000) * 1000);
             if (!received) {
@@ -582,7 +799,26 @@ async function processSale() {
             if (change > 0) alert(`ເງິນທອນ: ${formatLAK(change)}`);
         }
         
-        // Update inventory
+        // VERIFY STOCK BEFORE DEDUCTING (Important!)
+        for (const item of cart) {
+            const { data: product } = await window.supabaseClient
+                .from('pos_products')
+                .select('stock_qty, name')
+                .eq('barcode', item.barcode)
+                .single();
+            
+            if (!product) {
+                showToast(`ບໍ່ພົບສິນຄ້າ: ${item.name}`, 'error');
+                throw new Error('Product not found');
+            }
+            
+            if (product.stock_qty < item.qty) {
+                showToast(`ສິນຄ້າ ${item.name} ມີເຫຼືອພຽງ ${product.stock_qty} ຊິ້ນ`, 'error');
+                throw new Error('Insufficient stock');
+            }
+        }
+        
+        // UPDATE INVENTORY
         for (const item of cart) {
             const { data: product } = await window.supabaseClient
                 .from('pos_products')
@@ -590,15 +826,16 @@ async function processSale() {
                 .eq('barcode', item.barcode)
                 .single();
             
-            if (product && product.stock_qty >= item.qty) {
+            if (product) {
                 await window.supabaseClient
                     .from('pos_products')
                     .update({ stock_qty: product.stock_qty - item.qty })
                     .eq('barcode', item.barcode);
+                console.log(`✅ Stock updated: ${item.name} → ${product.stock_qty - item.qty}`);
             }
         }
         
-        // Save sale
+        // SAVE SALE
         const { data, error } = await window.supabaseClient
             .from('pos_sales')
             .insert([{
@@ -619,7 +856,7 @@ async function processSale() {
         
         if (error) throw error;
         
-        // Update customer points
+        // UPDATE CUSTOMER POINTS
         if (selectedCustomer) {
             const newPoints = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
             await window.supabaseClient
@@ -631,8 +868,10 @@ async function processSale() {
                 .eq('phone', selectedCustomer.phone);
         }
         
+        // PRINT RECEIPT
         printReceipt(data[0].id, finalTotal, pointsEarned);
         
+        // CLEAR CART
         cart = [];
         selectedCustomer = null;
         appliedPoints = 0;
@@ -644,14 +883,18 @@ async function processSale() {
         showToast(`ຊຳລະສຳເລັດ! ${formatLAK(finalTotal)}`, 'success');
         
     } catch (err) {
-        console.error(err);
-        showToast('ເກີດຂໍ້ຜິດພາດ: ' + err.message, 'error');
+        console.error('Sale error:', err);
+        showToast('ເກີດຂໍ້ຜິດພາດ: ' + (err.message || 'ກະລຸນາລອງໃໝ່'), 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
         document.getElementById('barcode-input').focus();
     }
 }
+
+// =====================================================
+// INITIALIZATION
+// =====================================================
 
 // Event listeners
 document.getElementById('barcode-input').addEventListener('keypress', (e) => {
@@ -663,11 +906,11 @@ document.getElementById('barcode-input').addEventListener('keypress', (e) => {
 
 document.getElementById('customer-phone').addEventListener('input', searchCustomer);
 
-// Initialize
 function init() {
     if (!checkAuth()) return;
     displayUserName();
     setupRoleBasedMenus();
+    loadHoldBills();
     drawCart();
     document.getElementById('barcode-input').focus();
 }
