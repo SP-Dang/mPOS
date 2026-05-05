@@ -431,9 +431,11 @@ let holdBills = [];
 
 // Calculate totals
 function calculateTotals() {
-    const subtotal = cart.reduce((sum, item) => sum + (item.retail_price * item.qty), 0);
-    const tax = subtotal * window.TAX_RATE / 100;
-    const total = subtotal + tax - currentDiscount;
+    // retail_price already includes VAT
+    const total = cart.reduce((sum, item) => sum + (item.retail_price * item.qty), 0) - currentDiscount;
+    // Calculate VAT backward from total (VAT is included in the price)
+    const tax = total * (window.TAX_RATE / (100 + window.TAX_RATE));
+    const subtotal = total - tax;
     return { subtotal, tax, total };
 }
 
