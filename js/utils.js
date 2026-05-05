@@ -1,5 +1,5 @@
 // =====================================================
-// mPOS - SHARED UTILITIES
+// UTILITIES - SHARED ACROSS ALL PAGES
 // =====================================================
 
 // Format currency in Lao Kip
@@ -44,19 +44,26 @@ function calculateCartTotals(cart, taxRate = 7) {
     return { subtotal, tax, total };
 }
 
-// Generate short order ID from full UUID
-function getShortOrderId(fullUuid) {
-    return fullUuid.substring(0, 8).toUpperCase();
+// Generate invoice number
+function generateInvoiceNumber() {
+    const today = new Date();
+    const dateStr = today.getFullYear().toString().slice(-2) + 
+                   (today.getMonth() + 1).toString().padStart(2, '0') + 
+                   today.getDate().toString().padStart(2, '0');
+    const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `INV-${dateStr}-${randomNum}`;
 }
 
-// Format date for receipt
-function formatReceiptDate() {
-    const now = new Date();
-    const day = now.getDate().toString().padStart(2, '0');
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const year = now.getFullYear();
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-}
+// Animation keyframes
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
