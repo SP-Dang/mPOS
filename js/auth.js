@@ -26,7 +26,7 @@ async function loginWithPin(username, pin) {
     localStorage.setItem('lsm_user_name', staff.full_name);
     localStorage.setItem('lsm_role', staff.role);
     localStorage.setItem('lsm_username', staff.username);
-    
+    await setRLSContext(staff.role);
     showToast(`ສະບາຍດີ ${staff.full_name}`, 'success');
     
     setTimeout(() => {
