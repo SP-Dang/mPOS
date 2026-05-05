@@ -12,55 +12,49 @@ const STAFF_DATA = {
 async function loginWithPin(username, pin) {
     console.log('Login attempt:', username);
     
-    try {
-        const staff = STAFF_DATA[username];
-        
-        if (!staff) {
-            showToast('ຊື່ຜູ້ໃຊ້ບໍ່ຖືກຕ້ອງ', 'error');
-            return false;
-        }
-        
-        if (staff.pin !== pin) {
-            showToast('PIN ບໍ່ຖືກຕ້ອງ', 'error');
-            return false;
-        }
-        
-        // Store user info
-        localStorage.setItem('lsm_user_id', staff.id);
-        localStorage.setItem('lsm_user_name', staff.full_name);
-        localStorage.setItem('lsm_role', staff.role);
-        localStorage.setItem('lsm_username', staff.username);
-        
-        console.log('✅ Login successful:', staff.full_name);
-        showToast(`ສະບາຍດີ ${staff.full_name}`, 'success');
-        
-        // Update last login (optional - ignore errors)
-        if (window.supabaseClient) {
-            try {
-                await window.supabaseClient
-                    .from('pos_staff')
-                    .update({ last_login: new Date().toISOString() })
-                    .eq('id', staff.id);
-            } catch (err) {
-                console.log('Note: Could not update last login');
-            }
-        }
-        
-        // Redirect
-        setTimeout(() => {
-            if (staff.role === 'GM') {
-                window.location.href = 'index.html';
-            } else {
-                window.location.href = 'pos-checkout.html';
-            }
-        }, 500);
-        
-        return true;
-    } catch (err) {
-        console.error('Login error:', err);
-        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
+    const staff = STAFF_DATA[username];
+    
+    if (!staff) {
+        showToast('ຊື່ຜູ້ໃຊ້ບໍ່ຖືກຕ້ອງ', 'error');
         return false;
     }
+    
+    if (staff.pin !== pin) {
+        showToast('PIN ບໍ່ຖືກຕ້ອງ', 'error');
+        return false;
+    }
+    
+    // Store user info
+    localStorage.setItem('lsm_user_id', staff.id);
+    localStorage.setItem('lsm_user_name', staff.full_name);
+    localStorage.setItem('lsm_role', staff.role);
+    localStorage.setItem('lsm_username', staff.username);
+    
+    console.log('Login successful:', staff.full_name);
+    showToast(`ສະບາຍດີ ${staff.full_name}`, 'success');
+    
+    // Update last login (optional)
+    if (window.supabaseClient) {
+        try {
+            await window.supabaseClient
+                .from('pos_staff')
+                .update({ last_login: new Date().toISOString() })
+                .eq('id', staff.id);
+        } catch (err) {
+            console.log('Could not update last login');
+        }
+    }
+    
+    // Redirect
+    setTimeout(() => {
+        if (staff.role === 'GM') {
+            window.location.href = 'index.html';
+        } else {
+            window.location.href = 'pos-checkout.html';
+        }
+    }, 500);
+    
+    return true;
 }
 
 // Get current user
