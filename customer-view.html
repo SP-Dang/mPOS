@@ -129,7 +129,7 @@ function formatCurrency(amount) {
 }
 
 function updateUI(data) {
-    console.log('Updating UI:', data);
+    console.log('🔄 Updating UI with data:', data);
     
     document.getElementById('payment-content').style.display = 'block';
     document.getElementById('thank-you-msg').style.display = 'none';
@@ -179,9 +179,9 @@ function showThankYou() {
     }, 8000);
 }
 
-// Start real-time subscription
+// Start real-time subscription with simpler approach
 async function startRealtimeSubscription() {
-    console.log('Starting real-time subscription...');
+    console.log('🔄 Starting real-time subscription...');
     
     // First, get initial data
     const { data: initialData } = await _supabase
@@ -203,7 +203,7 @@ async function startRealtimeSubscription() {
             table: 'pos_customer_display',
             filter: `id=eq.${TERMINAL_ID}`
         }, (payload) => {
-            console.log('UPDATE received:', payload);
+            console.log('📡 UPDATE received:', payload);
             const data = payload.new;
             if (data.status === 'PAID') {
                 showThankYou();
@@ -217,12 +217,12 @@ async function startRealtimeSubscription() {
             table: 'pos_customer_display',
             filter: `id=eq.${TERMINAL_ID}`
         }, (payload) => {
-            console.log('INSERT received:', payload);
+            console.log('📡 INSERT received:', payload);
             const data = payload.new;
             updateUI(data);
         })
         .subscribe((status) => {
-            console.log('Subscription status:', status);
+            console.log('📡 Subscription status:', status);
             if (status === 'SUBSCRIBED') {
                 console.log('✅ Real-time connected!');
             }
@@ -246,6 +246,7 @@ function startPolling() {
                 .maybeSingle();
             
             if (data && data.status !== 'PAID') {
+                // Only update if something changed (avoid flicker)
                 const currentAmount = document.getElementById('amount').innerText;
                 const newAmount = formatCurrency(data.amount);
                 if (currentAmount !== newAmount) {
@@ -263,7 +264,7 @@ function startPolling() {
 // Start everything
 async function init() {
     await startRealtimeSubscription();
-    startPolling();
+    startPolling(); // Fallback in case realtime fails
 }
 
 init();
