@@ -553,17 +553,38 @@ async function updateCustomerDisplay() {
         const { total } = calculateTotals();
         const qrString = paymentMethod === 'QR Code' && total > 0 ? generateQRString(total) : '';
         
-        await window.supabaseClient
+        // Make sure items is properly formatted as JSON
+        const itemsJson = cart.map(item => ({
+            name: item.name,
+            barcode: item.barcode,
+            retail_price: item.retail_price,
+            qty: item.qty
+        }));
+        
+        console.log('📤 Sending to customer display:', {
+            amount: total,
+            items: itemsJson,
+            qr_string: qrString,
+            payment_method: paymentMethod
+        });
+        
+        const { data, error } = await window.supabaseClient
             .from('pos_customer_display')
             .upsert({
                 id: CUSTOMER_DISPLAY_ID,
                 amount: total,
                 status: 'PENDING',
-                items: cart,
+                items: itemsJson,  // Send the cleaned items array
                 payment_method: paymentMethod,
-                qr_string: qrString,  // Change from 'qr_code' to 'qr_string'
+                qr_string: qrString,
                 updated_at: new Date().toISOString()
             });
+        
+        if (error) {
+            console.error('❌ Error saving to customer display:', error);
+        } else {
+            console.log('✅ Customer display updated:', data);
+        }
     } catch (err) {
         console.error('Display error:', err);
     }
@@ -611,9 +632,9 @@ function drawCart() {
     if (!tbody) return;
     
     if (cart.length === 0) {
-        tbody.innerHTML = '<td><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></table>';
         updateDisplay();
-        updateCustomerDisplay();
+        updateCustomerDisplay(); // Make sure this is called
         return;
     }
     
@@ -627,9 +648,9 @@ function drawCart() {
         </tr>
     `).join('');
     updateDisplay();
-    updateCustomerDisplay();
+    updateCustomerDisplay(); // Make sure this is called
 }
-
+    
 function adjustQuantity(idx, delta) {
     const newQty = cart[idx].qty + delta;
     if (newQty < 1) {
