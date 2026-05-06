@@ -113,7 +113,6 @@
             cursor: pointer;
         }
         
-        /* Hold Bills Panel */
         .hold-panel {
             background: white;
             border-radius: 16px;
@@ -246,7 +245,6 @@
         .btn-complete { width: 100%; background: var(--primary); color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 800; font-size: 16px; cursor: pointer; }
         .empty-cart { text-align: center; padding: 60px; color: var(--text-light); }
         
-        /* Receipt Print */
         @media print {
             body * { visibility: hidden; }
             .receipt-print, .receipt-print * { visibility: visible; }
@@ -279,6 +277,18 @@
             from { transform: translateX(0); opacity: 1; }
             to { transform: translateX(100%); opacity: 0; }
         }
+        
+        .offline-badge {
+            background: #fef3c7;
+            color: #b45309;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: none;
+            align-items: center;
+            gap: 6px;
+        }
     </style>
 </head>
 <body>
@@ -308,7 +318,6 @@
             </div>
         </div>
         
-        <!-- Hold Bills Panel -->
         <div class="hold-panel" id="hold-panel">
             <div class="hold-header">
                 <h3>📋 ບິນທີ່ຖືໄວ້ (Hold Bills)</h3>
@@ -393,15 +402,13 @@
     </div>
 </div>
     
-<!-- SHARED JAVASCRIPT FILES -->
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/auth.js"></script>
 
-<!-- PAGE-SPECIFIC CODE -->
 <script>
 // =====================================================
-// POS CHECKOUT - FULL FEATURES WITH CUSTOMER DISPLAY
+// POS CHECKOUT - FULL OFFLINE SUPPORT
 // =====================================================
 
 // State
@@ -413,14 +420,118 @@ let currentDiscount = 0;
 let holdBills = [];
 
 const CUSTOMER_DISPLAY_ID = "main-terminal";
+let isOnline = navigator.onLine;
 
-// Format currency (fallback if not in utils)
+// =====================================================
+// OFFLINE SUPPORT - localStorage
+// =====================================================
+
+// Pending sales queue
+let pendingSales = JSON.parse(localStorage.getItem('pending_sales') || '[]');
+
+function savePendingSale(saleData) {
+    pendingSales.push({
+        ...saleData,
+        pending_id: Date.now(),
+        created_at: new Date().toISOString()
+    });
+    localStorage.setItem('pending_sales', JSON.stringify(pendingSales));
+    console.log('💾 Sale saved to localStorage');
+}
+
+async function syncPendingSales() {
+    if (!isOnline) return;
+    if (pendingSales.length === 0) return;
+    
+    showToast(`🔄 ກຳລັງອັບໂຫຼດ ${pendingSales.length} ລາຍການ...`, 'info');
+    
+    let syncedIds = [];
+    
+    for (const sale of pendingSales) {
+        try {
+            const { error } = await window.supabaseClient
+                .from('pos_sales')
+                .insert([sale]);
+            
+            if (!error) {
+                syncedIds.push(sale.pending_id);
+                console.log('✅ Synced:', sale.invoice_number);
+            }
+        } catch (err) {
+            console.error('Sync failed:', err);
+        }
+    }
+    
+    pendingSales = pendingSales.filter(s => !syncedIds.includes(s.pending_id));
+    localStorage.setItem('pending_sales', JSON.stringify(pendingSales));
+    
+    if (syncedIds.length > 0) {
+        showToast(`✅ ອັບໂຫຼດ ${syncedIds.length} ລາຍການສຳເລັດ`, 'success');
+    }
+}
+
+// =====================================================
+// PRODUCT CACHE - for offline barcode scanning
+// =====================================================
+
+async function cacheAllProducts() {
+    if (!isOnline) return;
+    
+    try {
+        const { data } = await window.supabaseClient
+            .from('pos_products')
+            .select('*');
+        
+        if (data && data.length > 0) {
+            localStorage.setItem('cached_products', JSON.stringify(data));
+            localStorage.setItem('cached_products_time', Date.now().toString());
+            console.log(`✅ ${data.length} products cached for offline`);
+            showToast(`📦 ບັນທຶກສິນຄ້າ ${data.length} ລາຍການແລ້ວ`, 'success');
+        }
+    } catch (err) {
+        console.error('Cache products error:', err);
+    }
+}
+
+function getProductFromCache(barcode) {
+    const cached = localStorage.getItem('cached_products');
+    if (!cached) return null;
+    
+    const products = JSON.parse(cached);
+    return products.find(p => p.barcode === barcode);
+}
+
+function isCacheValid() {
+    const cacheTime = localStorage.getItem('cached_products_time');
+    if (!cacheTime) return false;
+    const age = Date.now() - parseInt(cacheTime);
+    return age < 7 * 24 * 60 * 60 * 1000; // 7 days
+}
+
+// =====================================================
+// NETWORK LISTENERS
+// =====================================================
+window.addEventListener('online', async () => {
+    isOnline = true;
+    showToast('✅ ເຊື່ອມຕໍ່ອິນເຕີເນັດແລ້ວ', 'success');
+    await syncPendingSales();
+    await cacheAllProducts();
+});
+
+window.addEventListener('offline', () => {
+    isOnline = false;
+    showToast('⚠️ ບໍ່ມີອິນເຕີເນັດ, ກຳລັງໃຊ້ງານແບບ Offline', 'warning');
+});
+
+// =====================================================
+// CORE FUNCTIONS
+// =====================================================
+
 function formatLAK(amount) {
     if (isNaN(amount) || amount === undefined) return '₭0';
     return new Intl.NumberFormat('lo-LA').format(Math.round(amount)) + ' ₭';
 }
 
-// Generate invoice number
 function generateInvoiceNumber() {
     const today = new Date();
     const dateStr = today.getFullYear().toString().slice(-2) + 
@@ -430,45 +541,32 @@ function generateInvoiceNumber() {
     return `INV-${dateStr}-${randomNum}`;
 }
 
-// =====================================================
-// CUSTOMER DISPLAY FUNCTIONS
-// =====================================================
-
-// Generate QR string for payment
 function generateQRString(amount) {
     if (amount <= 0) return '';
     const amountStr = Math.round(amount).toString();
     return `00020101021138670016A00526628466257701082771041802030010324QDZNRPLTFVYIIIOJNUCUZYGC530341854${amountStr}5802LA6304`;
 }
 
-// Update customer display
 async function updateCustomerDisplay() {
-    if (!window.supabaseClient) return;
-    
+    if (!window.supabaseClient || !isOnline) return;
     try {
         const { total } = calculateTotals();
-        const qrString = paymentMethod === 'QR Code' && total > 0 ? generateQRString(total) : '';
-        
         await window.supabaseClient
             .from('pos_customer_display')
             .upsert({
                 id: CUSTOMER_DISPLAY_ID,
                 amount: total,
-                qr_string: qrString,
                 status: 'PENDING',
                 items: cart,
                 updated_at: new Date().toISOString()
             });
-        console.log('📺 Customer display updated');
     } catch (err) {
-        console.error('Customer display error:', err);
+        console.error('Display error:', err);
     }
 }
 
-// Mark as paid
 async function markCustomerDisplayPaid() {
-    if (!window.supabaseClient) return;
-    
+    if (!window.supabaseClient || !isOnline) return;
     try {
         await window.supabaseClient
             .from('pos_customer_display')
@@ -482,10 +580,6 @@ async function markCustomerDisplayPaid() {
     }
 }
 
-// =====================================================
-// CORE FUNCTIONS
-// =====================================================
-
 function calculateTotals() {
     const total = cart.reduce((sum, item) => sum + (item.retail_price * item.qty), 0) - currentDiscount;
     const tax = total * (window.TAX_RATE / (100 + window.TAX_RATE));
@@ -495,21 +589,15 @@ function calculateTotals() {
 
 function updateDisplay() {
     const { subtotal, tax, total } = calculateTotals();
-    const subtotalEl = document.getElementById('subtotal-display');
-    const taxEl = document.getElementById('tax-display');
-    const grandTotalEl = document.getElementById('grand-total');
-    const discountRow = document.getElementById('discount-row');
-    const discountDisplay = document.getElementById('discount-display');
-    
-    if (subtotalEl) subtotalEl.innerHTML = formatLAK(subtotal);
-    if (taxEl) taxEl.innerHTML = formatLAK(tax);
-    if (grandTotalEl) grandTotalEl.innerHTML = formatLAK(total);
+    document.getElementById('subtotal-display').innerHTML = formatLAK(subtotal);
+    document.getElementById('tax-display').innerHTML = formatLAK(tax);
+    document.getElementById('grand-total').innerHTML = formatLAK(total);
     
     if (currentDiscount > 0) {
-        if (discountRow) discountRow.style.display = 'flex';
-        if (discountDisplay) discountDisplay.innerHTML = `-${formatLAK(currentDiscount)}`;
+        document.getElementById('discount-row').style.display = 'flex';
+        document.getElementById('discount-display').innerHTML = `-${formatLAK(currentDiscount)}`;
     } else {
-        if (discountRow) discountRow.style.display = 'none';
+        document.getElementById('discount-row').style.display = 'none';
     }
 }
 
@@ -518,7 +606,7 @@ function drawCart() {
     if (!tbody) return;
     
     if (cart.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>';
+        tbody.innerHTML = '<td><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>';
         updateDisplay();
         updateCustomerDisplay();
         return;
@@ -544,12 +632,10 @@ function adjustQuantity(idx, delta) {
         drawCart();
         return;
     }
-    
     if (delta > 0 && newQty > cart[idx].stock_qty) {
-        showToast(`ສິນຄ້າເຫຼືອພຽງ ${cart[idx].stock_qty} ຊິ້ນ`, 'warning');
+        showToast(`ເຫຼືອພຽງ ${cart[idx].stock_qty} ຊິ້ນ`, 'warning');
         return;
     }
-    
     cart[idx].qty = newQty;
     drawCart();
 }
@@ -573,7 +659,6 @@ function clearCart() {
 // =====================================================
 // HOLD BILL FUNCTIONS
 // =====================================================
-
 function loadHoldBills() {
     const saved = localStorage.getItem('lsm_hold_bills');
     if (saved) {
@@ -590,7 +675,6 @@ function saveHoldBills() {
 function updateHoldPanel() {
     const panel = document.getElementById('hold-panel');
     const container = document.getElementById('hold-bills-list');
-    
     if (!panel || !container) return;
     
     if (holdBills.length > 0) {
@@ -609,20 +693,16 @@ function updateHoldPanel() {
 
 function toggleHoldPanel() {
     const panel = document.getElementById('hold-panel');
-    if (panel) {
-        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-    }
+    if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
 
 function holdBill() {
     if (cart.length === 0) {
-        showToast('ບໍ່ມີສິນຄ້າໃນລາຍການ', 'warning');
+        showToast('ບໍ່ມີສິນຄ້າ', 'warning');
         return;
     }
-    
-    const name = prompt('ປ້ອນຊື່ລູກຄ້າ:', `ບິນ ${holdBills.length + 1}`);
+    const name = prompt('ຊື່ບິນ:', `ບິນ ${holdBills.length + 1}`);
     const { total } = calculateTotals();
-    
     holdBills.push({
         id: Date.now(),
         name: name || `ບິນ ${holdBills.length + 1}`,
@@ -631,7 +711,6 @@ function holdBill() {
         paymentMethod: paymentMethod,
         total: total
     });
-    
     saveHoldBills();
     cart = [];
     selectedCustomer = null;
@@ -640,36 +719,29 @@ function holdBill() {
     document.getElementById('customer-phone').value = '';
     document.getElementById('customer-info').style.display = 'none';
     drawCart();
-    showToast(`ຖືບິນ "${name}" ສຳເລັດ`, 'success');
+    showToast(`ຖືບິນ "${name}"`, 'success');
 }
 
 function loadHoldBill(index) {
     const bill = holdBills[index];
     if (!bill) return;
-    
-    if (cart.length > 0 && !confirm('ຕ້ອງການໂຫຼດບິນທີ່ຖືໄວ້? ລາຍການປະຈຸບັນຈະຖືກຍົກເລີກ')) {
-        return;
-    }
-    
+    if (cart.length > 0 && !confirm('ໂຫຼດບິນທີ່ຖືໄວ້?')) return;
     cart = JSON.parse(JSON.stringify(bill.cart));
     selectedCustomer = bill.customer;
     paymentMethod = bill.paymentMethod || 'Cash';
-    
     drawCart();
     updatePaymentMethodUI();
-    
     if (selectedCustomer) {
         document.getElementById('customer-phone').value = selectedCustomer.phone;
         displayCustomerInfo(selectedCustomer);
     }
-    
     holdBills.splice(index, 1);
     saveHoldBills();
-    showToast(`ໂຫຼດບິນ "${bill.name}" ສຳເລັດ`, 'success');
+    showToast(`ໂຫຼດບິນ "${bill.name}"`, 'success');
 }
 
 function removeHoldBill(index) {
-    if (confirm('ຕ້ອງການລຶບບິນນີ້?')) {
+    if (confirm('ລຶບບິນນີ້?')) {
         holdBills.splice(index, 1);
         saveHoldBills();
         showToast('ລຶບສຳເລັດ', 'success');
@@ -687,43 +759,62 @@ function updatePaymentMethodUI() {
 }
 
 // =====================================================
-// PRODUCT & CUSTOMER FUNCTIONS
+// SEARCH PRODUCT - WORKS OFFLINE (uses cache)
 // =====================================================
 
 async function searchProduct(barcode) {
     if (!barcode.trim()) return;
     
-    try {
-        const { data, error } = await window.supabaseClient
-            .from('pos_products')
-            .select('*')
-            .eq('barcode', barcode.trim())
-            .single();
-        
-        if (error || !data) {
-            showToast('ບໍ່ພົບສິນຄ້າ!', 'error');
-            return;
+    let product = null;
+    let fromCache = false;
+    
+    if (isOnline) {
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('pos_products')
+                .select('*')
+                .eq('barcode', barcode.trim())
+                .single();
+            
+            if (!error && data) {
+                product = data;
+                fromCache = false;
+            }
+        } catch (err) {
+            console.log('Online failed, trying cache...');
         }
-        
-        const existing = cart.find(i => i.barcode === data.barcode);
-        const currentQtyInCart = existing ? existing.qty : 0;
-        
-        if (currentQtyInCart + 1 > data.stock_qty) {
-            showToast(`ສິນຄ້າເຫຼືອພຽງ ${data.stock_qty} ຊິ້ນ`, 'warning');
-            return;
-        }
-        
-        if (existing) {
-            existing.qty++;
-        } else {
-            cart.push({ ...data, qty: 1 });
-        }
-        drawCart();
-        showToast(`ເພີ່ມ ${data.name} ສຳເລັດ`, 'success');
-    } catch (err) {
-        console.error(err);
-        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
     }
+    
+    // Try cache if online failed or offline
+    if (!product) {
+        product = getProductFromCache(barcode.trim());
+        if (product) fromCache = true;
+    }
+    
+    if (!product) {
+        showToast('ບໍ່ພົບສິນຄ້າ!', 'error');
+        return;
+    }
+    
+    if (fromCache) {
+        showToast(`📱 ແບບ Offline: ${product.name}`, 'info');
+    }
+    
+    const existing = cart.find(i => i.barcode === product.barcode);
+    const currentQtyInCart = existing ? existing.qty : 0;
+    
+    if (currentQtyInCart + 1 > product.stock_qty) {
+        showToast(`ເຫຼືອພຽງ ${product.stock_qty} ຊິ້ນ`, 'warning');
+        return;
+    }
+    
+    if (existing) {
+        existing.qty++;
+    } else {
+        cart.push({ ...product, qty: 1 });
+    }
+    drawCart();
+    showToast(`ເພີ່ມ ${product.name} ສຳເລັດ`, 'success');
 }
 
 function manualSearch() {
@@ -735,6 +826,9 @@ function manualSearch() {
     }
 }
 
+// =====================================================
+// CUSTOMER FUNCTIONS
+// =====================================================
 async function searchCustomer() {
     const phone = document.getElementById('customer-phone')?.value.trim();
     if (!phone || phone.length < 10) {
@@ -778,21 +872,17 @@ function setPaymentMethod(method, btn) {
 
 async function applyPoints() {
     if (!selectedCustomer) {
-        showToast('ກະລຸນາເລືອກລູກຄ້າກ່ອນ', 'warning');
+        showToast('ເລືອກລູກຄ້າກ່ອນ', 'warning');
         return;
     }
-    
     const { subtotal, tax } = calculateTotals();
     const maxPointsValue = Math.floor((subtotal + tax) / window.POINTS_VALUE);
     const availablePoints = Math.min(selectedCustomer.points, maxPointsValue);
-    
     if (availablePoints <= 0) {
         showToast('ຄະແນນບໍ່ພຽງພໍ', 'warning');
         return;
     }
-    
     const pointsToUse = prompt(`ມີ ${selectedCustomer.points} ຄະແນນ. ໃຊ້ຈັກຄະແນນ? (ສູງສຸດ ${availablePoints})`, availablePoints);
-    
     if (pointsToUse && !isNaN(pointsToUse) && pointsToUse > 0) {
         appliedPoints = Math.min(parseInt(pointsToUse), availablePoints);
         currentDiscount = appliedPoints * window.POINTS_VALUE;
@@ -803,9 +893,8 @@ async function applyPoints() {
 }
 
 // =====================================================
-// RECEIPT & SALE FUNCTIONS
+// RECEIPT & SALE
 // =====================================================
-
 function printReceipt(orderId, total, pointsEarned) {
     const now = new Date();
     const shortId = orderId.substring(0, 8).toUpperCase();
@@ -818,125 +907,29 @@ function printReceipt(orderId, total, pointsEarned) {
     let customerHtml = '';
     if (selectedCustomer) {
         const newPointsTotal = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
-        customerHtml = `
-            <div style="display: flex; justify-content: space-between;">
-                <span>ຊື່ລູກຄ້າ:</span>
-                <span><b>${selectedCustomer.name}</b></span>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-                <span>ເບີໂທ:</span>
-                <span>${selectedCustomer.phone}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 3px;">
-                <span>ຄະແນນກ່ອນຊື້:</span>
-                <span>⭐ ${(selectedCustomer.points || 0).toLocaleString()}</span>
-            </div>
-            ${appliedPoints > 0 ? `
-            <div style="display: flex; justify-content: space-between;">
-                <span>ຄະແນນທີ່ໃຊ້:</span>
-                <span style="color: #ef4444;">- ${appliedPoints.toLocaleString()}</span>
-            </div>
-            ` : ''}
-            <div style="display: flex; justify-content: space-between;">
-                <span>ຄະແນນທີ່ໄດ້ຮັບ:</span>
-                <span style="color: #10b981;">+ ${pointsEarned.toLocaleString()}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 3px;">
-                <span><b>ຄະແນນທັງໝົດ:</b></span>
-                <span><b>⭐ ${newPointsTotal.toLocaleString()}</b></span>
-            </div>
-        `;
-    } else if (pointsEarned > 0) {
-        customerHtml = `
-            <div style="display: flex; justify-content: space-between;">
-                <span>ຄະແນນທີ່ໄດ້ຮັບ:</span>
-                <span style="color: #10b981;">+ ${pointsEarned.toLocaleString()}</span>
-            </div>
-            <div style="font-size: 8px; color: #64748b; margin-top: 3px;">
-                ສະສົມຄະແນນເພື່ອສ່ວນຫຼຸດໃນຄັ້ງຕໍ່ໄປ
-            </div>
-        `;
+        customerHtml = `<div>ຊື່: ${selectedCustomer.name}</div><div>ເບີ: ${selectedCustomer.phone}</div><div>ຄະແນນ: ${newPointsTotal}</div>`;
     }
     document.getElementById('receipt-customer-info').innerHTML = customerHtml;
     
-    const itemsHtml = cart.map(item => `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 3px; text-align: left;">
-            <div style="flex: 2; text-align: left;">
-                <span>${item.name}</span>
-                <span style="font-size: 8px; color: #666; margin-left: 5px;">x${item.qty}</span>
-            </div>
-            <div style="text-align: right;">
-                ${formatLAK(item.retail_price * item.qty)}
-            </div>
-        </div>
-    `).join('');
+    const itemsHtml = cart.map(item => `<div>${item.name} x${item.qty} = ${formatLAK(item.retail_price * item.qty)}</div>`).join('');
     document.getElementById('receipt-items-list').innerHTML = itemsHtml;
     
     const { subtotal, tax } = calculateTotals();
     const finalTotal = subtotal + tax - currentDiscount;
-    
-    let totalsHtml = `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-            <span>ຍອດຍ່ອຍ:</span>
-            <span>${formatLAK(subtotal)}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-            <span>ອາກອນ (7%):</span>
-            <span>${formatLAK(tax)}</span>
-        </div>
+    document.getElementById('receipt-totals').innerHTML = `
+        <div>ຍອດຍ່ອຍ: ${formatLAK(subtotal)}</div>
+        <div>ອາກອນ 7%: ${formatLAK(tax)}</div>
+        ${currentDiscount > 0 ? `<div>ສ່ວນຫຼຸດ: -${formatLAK(currentDiscount)}</div>` : ''}
+        <div><b>ລວມ: ${formatLAK(finalTotal)}</b></div>
+        <div>ຊຳລະ: ${paymentMethod}</div>
     `;
     
-    if (currentDiscount > 0) {
-        totalsHtml += `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 2px; color: #ef4444;">
-                <span>ສ່ວນຫຼຸດ:</span>
-                <span>-${formatLAK(currentDiscount)}</span>
-            </div>
-        `;
-    }
-    
-    totalsHtml += `
-        <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 5px;">
-            <span>ຍອດລວມ:</span>
-            <span>${formatLAK(finalTotal)}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-top: 3px;">
-            <span>ຊຳລະດ້ວຍ:</span>
-            <span>${paymentMethod}</span>
-        </div>
-    `;
-    document.getElementById('receipt-totals').innerHTML = totalsHtml;
-    
-    let pointsFooterHtml = '';
-    if (selectedCustomer && pointsEarned > 0) {
-        pointsFooterHtml = `<div style="text-align: center; font-size: 8px;">⭐ ສະສົມຄະແນນ ${pointsEarned} ສໍາລັບການຊື້ຄັ້ງຕໍ່ໄປ</div>`;
-    }
-    document.getElementById('receipt-points-info').innerHTML = pointsFooterHtml;
-    
-    JsBarcode("#receipt-barcode", shortId, { 
-        format: "CODE128", 
-        width: 1.2, 
-        height: 30, 
-        displayValue: true,
-        fontSize: 9,
-        textMargin: 2
-    });
+    JsBarcode("#receipt-barcode", shortId, { format: "CODE128", width: 1.2, height: 30, displayValue: true });
     
     setTimeout(() => {
         const content = document.querySelector('.receipt-print').cloneNode(true);
         const win = window.open('', '_blank');
-        win.document.write(`<!DOCTYPE html>
-        <html>
-        <head>
-            <title>ໃບຮັບເງິນ</title>
-            <style>
-                @page { size: 80mm; margin: 0; }
-                body { font-family: monospace; font-size: 11px; width: 80mm; margin: 0; padding: 6px; line-height: 1.35; }
-                .receipt-print { width: 100%; }
-            </style>
-        </head>
-        <body>${content.outerHTML}</body>
-        </html>`);
+        win.document.write(`<!DOCTYPE html><html><head><title>ໃບຮັບເງິນ</title><style>@page{size:80mm;margin:0}body{font-family:monospace;font-size:11px;width:80mm;margin:0;padding:6px}</style></head><body>${content.outerHTML}</body></html>`);
         win.print();
         win.close();
     }, 200);
@@ -959,101 +952,81 @@ async function processSale() {
         const pointsEarned = Math.floor(finalTotal / window.POINTS_RATE);
         const invoiceNumber = generateInvoiceNumber();
         
+        // Cash payment
         if (paymentMethod === 'Cash') {
-    const defaultAmount = Math.ceil(finalTotal / 1000) * 1000;
-    const formattedDefault = defaultAmount.toLocaleString('lo-LA');
-    const received = prompt(`ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, formattedDefault);
-    
-    if (!received) {
-        btn.disabled = false;
-        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-        return;
-    }
-    
-    // Remove commas and convert to number
-    const cashReceived = parseFloat(received.replace(/,/g, ''));
-    
-    if (isNaN(cashReceived)) {
-        showToast('ກະລຸນາປ້ອນຈຳນວນເງິນ', 'error');
-        btn.disabled = false;
-        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-        return;
-    }
-    
-    // Calculate change
-    const change = cashReceived - finalTotal;
-    
-    // FIX: Check if customer paid enough
-    if (cashReceived < finalTotal) {
-        showToast(`ເງິນບໍ່ພຽງພໍ! ຕ້ອງການ ${formatLAK(finalTotal)}`, 'error');
-        btn.disabled = false;
-        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-        return;
-    }
-    
-    // Show change if any
-    if (change > 0) {
-        showToast(`ເງິນທອນ: ${formatLAK(change)}`, 'info');
-    }
-}
-        
-        for (const item of cart) {
-            const { data: product } = await window.supabaseClient
-                .from('pos_products')
-                .select('stock_qty, name')
-                .eq('barcode', item.barcode)
-                .single();
-            
-            if (!product) throw new Error(`Product not found: ${item.name}`);
-            if (product.stock_qty < item.qty) throw new Error(`Insufficient stock for ${item.name}`);
+            const defaultAmount = Math.ceil(finalTotal / 1000) * 1000;
+            const received = prompt(`ຍອດ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, defaultAmount);
+            if (!received) {
+                btn.disabled = false;
+                btn.innerHTML = '✅ ສຳເລັດ';
+                return;
+            }
+            const cashReceived = parseFloat(received.replace(/,/g, ''));
+            const change = cashReceived - finalTotal;
+            if (change < 0) {
+                showToast('ເງິນບໍ່ພໍ!', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '✅ ສຳເລັດ';
+                return;
+            }
+            if (change > 0) showToast(`ທອນ: ${formatLAK(change)}`, 'info');
         }
         
-        for (const item of cart) {
-            const { data: product } = await window.supabaseClient
-                .from('pos_products')
-                .select('stock_qty')
-                .eq('barcode', item.barcode)
-                .single();
-            
-            if (product) {
-                await window.supabaseClient
+        // Update inventory (online only)
+        if (isOnline) {
+            for (const item of cart) {
+                const { data: product } = await window.supabaseClient
                     .from('pos_products')
-                    .update({ stock_qty: product.stock_qty - item.qty })
-                    .eq('barcode', item.barcode);
+                    .select('stock_qty')
+                    .eq('barcode', item.barcode)
+                    .single();
+                if (product && product.stock_qty >= item.qty) {
+                    await window.supabaseClient
+                        .from('pos_products')
+                        .update({ stock_qty: product.stock_qty - item.qty })
+                        .eq('barcode', item.barcode);
+                }
             }
         }
         
-        const { data, error } = await window.supabaseClient
-            .from('pos_sales')
-            .insert([{
-                invoice_number: invoiceNumber,
-                items: cart,
-                subtotal: subtotal,
-                tax_amount: tax,
-                discount_amount: currentDiscount,
-                total_amount: finalTotal,
-                payment_method: paymentMethod,
-                status: 'COMPLETED',
-                cashier_name: cashierName,
-                customer_phone: selectedCustomer?.phone || null,
-                points_earned: pointsEarned,
-                points_redeemed: appliedPoints
-            }])
-            .select();
+        const saleData = {
+            invoice_number: invoiceNumber,
+            items: cart,
+            subtotal: subtotal,
+            tax_amount: tax,
+            discount_amount: currentDiscount,
+            total_amount: finalTotal,
+            payment_method: paymentMethod,
+            status: 'COMPLETED',
+            cashier_name: cashierName,
+            customer_phone: selectedCustomer?.phone || null,
+            points_earned: pointsEarned,
+            points_redeemed: appliedPoints
+        };
         
-        if (error) throw error;
-        
-        if (selectedCustomer) {
-            const newPoints = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
-            await window.supabaseClient
-                .from('pos_customers')
-                .update({ points: newPoints, total_spent: (selectedCustomer.total_spent || 0) + finalTotal })
-                .eq('phone', selectedCustomer.phone);
+        if (isOnline) {
+            const { data, error } = await window.supabaseClient
+                .from('pos_sales')
+                .insert([saleData])
+                .select();
+            if (error) throw error;
+            
+            if (selectedCustomer) {
+                const newPoints = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
+                await window.supabaseClient
+                    .from('pos_customers')
+                    .update({ points: newPoints, total_spent: (selectedCustomer.total_spent || 0) + finalTotal })
+                    .eq('phone', selectedCustomer.phone);
+            }
+            await markCustomerDisplayPaid();
+            printReceipt(data[0].id, finalTotal, pointsEarned);
+        } else {
+            // Offline mode
+            savePendingSale(saleData);
+            const tempId = 'OFFLINE-' + Date.now();
+            printReceipt(tempId, finalTotal, pointsEarned);
+            showToast('💾 ບັນທຶກແບບ Offline', 'success');
         }
-        
-        await markCustomerDisplayPaid();
-        
-        printReceipt(data[0].id, finalTotal, pointsEarned);
         
         cart = [];
         selectedCustomer = null;
@@ -1063,14 +1036,12 @@ async function processSale() {
         document.getElementById('customer-info').style.display = 'none';
         drawCart();
         
-        showToast(`ຊຳລະສຳເລັດ! ${formatLAK(finalTotal)}`, 'success');
-        
     } catch (err) {
-        console.error('Sale error:', err);
-        showToast('ເກີດຂໍ້ຜິດພາດ: ' + (err.message || 'ກະລຸນາລອງໃໝ່'), 'error');
+        console.error(err);
+        showToast('ເກີດຂໍ້ຜິດພາດ: ' + err.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+        btn.innerHTML = '✅ ສຳເລັດ';
         document.getElementById('barcode-input').focus();
     }
 }
@@ -1078,43 +1049,44 @@ async function processSale() {
 // =====================================================
 // INITIALIZATION
 // =====================================================
-
 document.getElementById('barcode-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         searchProduct(e.target.value);
         e.target.value = '';
     }
 });
-
 document.getElementById('customer-phone').addEventListener('input', searchCustomer);
 
-function init() {
+async function init() {
     if (!checkAuth()) return;
     displayUserName();
     setupRoleBasedMenus();
     loadHoldBills();
     drawCart();
     document.getElementById('barcode-input').focus();
-}
-
-init();
-// =====================================================
-// AUTO-CLEAR CART AND DISPLAY WHEN TAB CLOSES OR LOGOUT
-// =====================================================
-
-// Function to clear everything (reuses existing clearCart)
-async function forceClearCart() {
-    console.log('🧹 Force clearing cart and display...');
     
-    if (typeof clearCart === 'function') {
-        clearCart();  // This already calls updateCustomerDisplay() which resets the table
-        console.log('✅ Cart cleared, display reset');
+    // Cache products for offline use
+    if (isOnline && !isCacheValid()) {
+        await cacheAllProducts();
+    }
+    
+    // Sync pending sales
+    if (isOnline && pendingSales.length > 0) {
+        setTimeout(() => syncPendingSales(), 2000);
+    }
+    
+    // Show cache status
+    if (localStorage.getItem('cached_products')) {
+        const products = JSON.parse(localStorage.getItem('cached_products'));
+        console.log(`📦 ${products.length} products available offline`);
     }
 }
 
-// 1. When tab/window is closed
+init();
+
+// Auto-clear on tab close
 window.addEventListener('beforeunload', () => {
-    forceClearCart();
+    if (typeof clearCart === 'function') clearCart();
 });
 </script>
 </body>
