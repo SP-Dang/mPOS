@@ -6,6 +6,7 @@
     <title>mPOS | Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -299,16 +300,21 @@
 </nav>
 
 <main class="main">
-    <div class="header">
-        <div>
-            <h1>Dashboard</h1>
-            <p id="date-display" style="color: var(--text-light); margin-top: 5px;"></p>
-        </div>
+   <div class="header">
+    <div>
+        <h1>Dashboard</h1>
+        <p id="date-display" style="color: var(--text-light); margin-top: 5px;"></p>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <button onclick="exportDashboardReport()" style="background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: 600;">
+            📊 ສົ່ງອອກລາຍງານ
+        </button>
         <div class="online-badge">
             <span class="online-dot"></span>
             ລະບົບປົກກະຕິ
         </div>
     </div>
+</div>
     
     <div class="stats-grid">
         <div class="stat-card">
@@ -430,6 +436,119 @@ async function loadDashboard() {
     }
 }
 
+async function exportDashboardReport() {
+    try {
+        // Get date range (last 30 days or custom)
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+        
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+        
+        // Fetch sales data
+        const { data: sales, error } = await window.supabaseClient
+            .from('pos_sales')
+            .select('*')
+            .gte('created_at', `${startStr}T00:00:00`)
+            .lte('created_at', `${endStr}T23:59:59`)
+            .eq('status', 'COMPLETED')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        // Fetch products for stock report
+        const { data: products } = await window.supabaseClient
+            .from('pos_products')
+            .select('*')
+            .order('name');
+        
+        // Fetch customers
+        const { data: customers } = await window.supabaseClient
+            .from('pos_customers')
+            .select('*')
+            .order('total_spent', { ascending: false })
+            .limit(10);
+        
+        // Prepare summary data
+        const totalRevenue = sales.reduce((sum, s) => sum + (s.total_amount || 0), 0);
+        const totalOrders = sales.length;
+        const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+        
+        // Calculate daily sales for chart
+        const dailySales = {};
+        sales.forEach(sale => {
+            const date = sale.created_at.split('T')[0];
+            dailySales[date] = (dailySales[date] || 0) + sale.total_amount;
+        });
+        
+        // Prepare Excel data
+        const summaryData = [
+            { "ລາຍການ": "ຍອດຂາຍລວມ (30 ວັນ)", "ມູນຄ່າ": totalRevenue },
+            { "ລາຍການ": "ຈຳນວນບິນທັງໝົດ", "ມູນຄ່າ": totalOrders },
+            { "ລາຍການ": "ຄ່າສະເລ່ຍຕໍ່ບິນ", "ມູນຄ່າ": Math.round(avgOrder) },
+            { "ລາຍການ": "ສິນຄ້າທັງໝົດ", "ມູນຄ່າ": products?.length || 0 },
+            { "ລາຍການ": "ສະມາຊິກທັງໝົດ", "ມູນຄ່າ": customers?.length || 0 }
+        ];
+        
+        // Prepare daily sales data
+        const dailyData = Object.entries(dailySales).map(([date, amount]) => ({
+            "ວັນທີ": date,
+            "ຍອດຂາຍ (₭)": amount
+        }));
+        
+        // Prepare low stock products
+        const lowStockProducts = products?.filter(p => p.stock_qty <= p.min_stock) || [];
+        const lowStockData = lowStockProducts.map(p => ({
+            "ບາໂຄດ": p.barcode,
+            "ຊື່ສິນຄ້າ": p.name,
+            "ຄົງເຫຼືອ": p.stock_qty,
+            "ຂັ້ນຕ່ຳ": p.min_stock,
+            "ລາຄາຂາຍ": p.retail_price
+        }));
+        
+        // Prepare top customers
+        const topCustomersData = customers?.slice(0, 10).map(c => ({
+            "ເບີໂທ": c.phone,
+            "ຊື່ລູກຄ້າ": c.name,
+            "ຄະແນນ": c.points || 0,
+            "ຍອດຊື້ລວມ": c.total_spent || 0
+        })) || [];
+        
+        // Create workbook
+        const wb = XLSX.utils.book_new();
+        
+        // Add sheets
+        const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+        XLSX.utils.book_append_sheet(wb, summarySheet, "ສະຫຼຸບລວມ");
+        
+        const dailySheet = XLSX.utils.json_to_sheet(dailyData);
+        XLSX.utils.book_append_sheet(wb, dailySheet, "ຍອດຂາຍລາຍວັນ");
+        
+        if (lowStockData.length > 0) {
+            const lowStockSheet = XLSX.utils.json_to_sheet(lowStockData);
+            XLSX.utils.book_append_sheet(wb, lowStockSheet, "ສິນຄ້າໃກ້ໝົດ");
+        }
+        
+        if (topCustomersData.length > 0) {
+            const customersSheet = XLSX.utils.json_to_sheet(topCustomersData);
+            XLSX.utils.book_append_sheet(wb, customersSheet, "ລູກຄ້າດີເດັ່ນ");
+        }
+        
+        // Generate filename with date
+        const filename = `Dashboard_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        // Export
+        XLSX.writeFile(wb, filename);
+        
+        showToast(`ສົ່ງອອກລາຍງານສຳເລັດ: ${filename}`, 'success');
+        
+    } catch (err) {
+        console.error('Export error:', err);
+        showToast('ເກີດຂໍ້ຜິດພາດສົ່ງອອກລາຍງານ', 'error');
+    }
+}
+    
 async function loadChart() {
     try {
         const sevenDaysAgo = new Date();
