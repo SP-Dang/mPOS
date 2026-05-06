@@ -116,12 +116,11 @@
 </div>
 
 <script>
-// Supabase configuration - using the global supabase from CDN
+// Supabase configuration
 const SUPABASE_URL = "https://rcjvgyetkukyaexzskmg.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjanZneWV0a3VreWFleHpza21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NzQ2MzUsImV4cCI6MjA5MzQ1MDYzNX0.aNTyK0l1sOYpZ0TdGrmjxIQbafnujQb1hP6dENX_104";
 const TERMINAL_ID = "main-terminal";
 
-// Create client - use a different variable name to avoid conflict
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function formatCurrency(amount) {
@@ -130,7 +129,7 @@ function formatCurrency(amount) {
 }
 
 function updateUI(data) {
-    console.log('Updating UI:', data);
+    console.log('🔄 Updating UI with data:', data);
     
     document.getElementById('payment-content').style.display = 'block';
     document.getElementById('thank-you-msg').style.display = 'none';
@@ -156,8 +155,12 @@ function updateUI(data) {
     qrContainer.innerHTML = "";
     
     if (data.qr_string && data.qr_string.length > 10) {
-        new QRCode(qrContainer, { text: data.qr_string, width: 200, height: 200 });
-        statusText.innerText = "📱 ສະແກນ QR ເພື່ອຊຳລະເງິນ";
+        try {
+            new QRCode(qrContainer, { text: data.qr_string, width: 200, height: 200 });
+            statusText.innerText = "📱 ສະແກນ QR ເພື່ອຊຳລະເງິນ";
+        } catch(e) {
+            console.error('QR Error:', e);
+        }
     } else if (amountValue > 0) {
         qrContainer.innerHTML = '<div style="font-size: 70px;">💵</div>';
         statusText.innerText = "💵 ຊຳລະເງິນສົດທີ່ເຄົາເຕີ";
@@ -176,45 +179,95 @@ function showThankYou() {
     }, 8000);
 }
 
-async function loadInitialData() {
-    try {
-        const { data } = await _supabase
-            .from('pos_customer_display')
-            .select('*')
-            .eq('id', TERMINAL_ID)
-            .maybeSingle();
-        
-        if (data && data.status !== 'PAID') {
-            updateUI(data);
-        }
-    } catch (err) {
-        console.error('Load error:', err);
+// Start real-time subscription with simpler approach
+async function startRealtimeSubscription() {
+    console.log('🔄 Starting real-time subscription...');
+    
+    // First, get initial data
+    const { data: initialData } = await _supabase
+        .from('pos_customer_display')
+        .select('*')
+        .eq('id', TERMINAL_ID)
+        .maybeSingle();
+    
+    if (initialData && initialData.status !== 'PAID') {
+        updateUI(initialData);
     }
+    
+    // Subscribe to changes
+    const channel = _supabase
+        .channel('public:pos_customer_display')
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'pos_customer_display',
+            filter: `id=eq.${TERMINAL_ID}`
+        }, (payload) => {
+            console.log('📡 UPDATE received:', payload);
+            const data = payload.new;
+            if (data.status === 'PAID') {
+                showThankYou();
+            } else {
+                updateUI(data);
+            }
+        })
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'pos_customer_display',
+            filter: `id=eq.${TERMINAL_ID}`
+        }, (payload) => {
+            console.log('📡 INSERT received:', payload);
+            const data = payload.new;
+            updateUI(data);
+        })
+        .subscribe((status) => {
+            console.log('📡 Subscription status:', status);
+            if (status === 'SUBSCRIBED') {
+                console.log('✅ Real-time connected!');
+            }
+        });
+    
+    return channel;
 }
 
-// Real-time subscription - using _supabase
-_supabase
-    .channel('customer-display-channel')
-    .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'pos_customer_display',
-        filter: `id=eq.${TERMINAL_ID}`
-    }, (payload) => {
-        console.log('Real-time update:', payload);
-        const data = payload.new;
-        if (data?.status === 'PAID') {
-            showThankYou();
-        } else if (data) {
-            updateUI(data);
-        }
-    })
-    .subscribe((status) => {
-        console.log('Subscription status:', status);
-    });
+// Also poll as fallback (every 2 seconds)
+let pollInterval = null;
 
-// Start
-loadInitialData();
+function startPolling() {
+    if (pollInterval) clearInterval(pollInterval);
+    
+    pollInterval = setInterval(async () => {
+        try {
+            const { data } = await _supabase
+                .from('pos_customer_display')
+                .select('*')
+                .eq('id', TERMINAL_ID)
+                .maybeSingle();
+            
+            if (data && data.status !== 'PAID') {
+                // Only update if something changed (avoid flicker)
+                const currentAmount = document.getElementById('amount').innerText;
+                const newAmount = formatCurrency(data.amount);
+                if (currentAmount !== newAmount) {
+                    updateUI(data);
+                }
+            } else if (data && data.status === 'PAID') {
+                showThankYou();
+            }
+        } catch (err) {
+            console.error('Poll error:', err);
+        }
+    }, 2000);
+}
+
+// Start everything
+async function init() {
+    await startRealtimeSubscription();
+    startPolling(); // Fallback in case realtime fails
+}
+
+init();
 </script>
 </body>
 </html>
