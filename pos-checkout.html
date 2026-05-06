@@ -1114,6 +1114,16 @@ function init() {
 }
 
 init();
+// =====================================================
+// AUTO-CLEAR ON TAB CLOSE
+// =====================================================
+window.addEventListener('beforeunload', () => {
+    console.log('🧹 Clearing cart on tab close...');
+    if (typeof clearCart === 'function') {
+        clearCart();
+    }
+});
+
 </script>
 </body>
 </html>
