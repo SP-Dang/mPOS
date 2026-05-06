@@ -414,124 +414,6 @@ let holdBills = [];
 
 const CUSTOMER_DISPLAY_ID = "main-terminal";
 
-// =====================================================
-// OFFLINE MODE CONFIGURATION
-// =====================================================
-
-let isOnline = navigator.onLine;
-
-// Check internet connection
-window.addEventListener('online', async () => {
-    isOnline = true;
-    showToast('ເຊື່ອມຕໍ່ອິນເຕີເນັດແລ້ວ', 'success');
-    await syncOfflineSales();
-    await cacheProductsOffline();
-});
-
-window.addEventListener('offline', () => {
-    isOnline = false;
-    showToast('ບໍ່ມີການເຊື່ອມຕໍ່ອິນເຕີເນັດ, ກຳລັງໃຊ້ງານແບບ Offline', 'warning');
-});
-
-// IndexedDB Setup for offline storage
-const OFFLINE_DB_NAME = 'mPOS_Offline';
-const OFFLINE_DB_VERSION = 1;
-
-function openOfflineDB() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(OFFLINE_DB_NAME, OFFLINE_DB_VERSION);
-        
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-        
-        request.onupgradeneeded = (event) => {
-            const db = event.target.result;
-            
-            if (!db.objectStoreNames.contains('products')) {
-                db.createObjectStore('products', { keyPath: 'barcode' });
-            }
-            
-            if (!db.objectStoreNames.contains('pending_sales')) {
-                const saleStore = db.createObjectStore('pending_sales', { keyPath: 'id', autoIncrement: true });
-                saleStore.createIndex('created_at', 'created_at');
-            }
-            
-            if (!db.objectStoreNames.contains('customers')) {
-                db.createObjectStore('customers', { keyPath: 'phone' });
-            }
-        };
-    });
-}
-
-async function cacheProductsOffline() {
-    if (!isOnline) return;
-    
-    try {
-        const { data } = await window.supabaseClient
-            .from('pos_products')
-            .select('*');
-        
-        const db = await openOfflineDB();
-        const tx = db.transaction(['products'], 'readwrite');
-        const store = tx.objectStore('products');
-        
-        store.clear();
-        data.forEach(product => {
-            store.put(product);
-        });
-        
-        await tx.done;
-        console.log('✅ Products cached offline');
-    } catch (err) {
-        console.error('Offline cache error:', err);
-    }
-}
-
-async function saveOfflineSale(saleData) {
-    const db = await openOfflineDB();
-    const tx = db.transaction(['pending_sales'], 'readwrite');
-    const store = tx.objectStore('pending_sales');
-    
-    store.add({
-        ...saleData,
-        created_at: new Date().toISOString(),
-        synced: false
-    });
-    
-    await tx.done;
-    showToast('ບັນທຶກການຂາຍແບບ Offline ສຳເລັດ', 'success');
-}
-
-async function syncOfflineSales() {
-    if (!isOnline) return;
-    
-    const db = await openOfflineDB();
-    const pendingSales = await new Promise((resolve) => {
-        const tx = db.transaction(['pending_sales'], 'readonly');
-        const store = tx.objectStore('pending_sales');
-        const request = store.getAll();
-        request.onsuccess = () => resolve(request.result);
-    });
-    
-    for (const sale of pendingSales) {
-        try {
-            await window.supabaseClient.from('pos_sales').insert([sale]);
-            
-            const deleteTx = db.transaction(['pending_sales'], 'readwrite');
-            deleteTx.objectStore('pending_sales').delete(sale.id);
-            await deleteTx.done;
-            
-            console.log('Synced sale:', sale.id);
-        } catch (err) {
-            console.error('Sync failed for sale:', err);
-        }
-    }
-    
-    if (pendingSales.length > 0) {
-        showToast(`ອັບໂຫຼດ ${pendingSales.length} ລາຍການທີ່ຄ້າງໄວ້ສຳເລັດ`, 'success');
-    }
-}    
-
 // Format currency (fallback if not in utils)
 function formatLAK(amount) {
     if (isNaN(amount) || amount === undefined) return '₭0';
@@ -811,55 +693,37 @@ function updatePaymentMethodUI() {
 async function searchProduct(barcode) {
     if (!barcode.trim()) return;
     
-    let product = null;
-    
-    if (isOnline) {
-        // Try online first
-        try {
-            const { data, error } = await window.supabaseClient
-                .from('pos_products')
-                .select('*')
-                .eq('barcode', barcode.trim())
-                .single();
-            
-            if (!error && data) product = data;
-        } catch (err) {
-            console.log('Online fetch failed, trying offline');
+    try {
+        const { data, error } = await window.supabaseClient
+            .from('pos_products')
+            .select('*')
+            .eq('barcode', barcode.trim())
+            .single();
+        
+        if (error || !data) {
+            showToast('ບໍ່ພົບສິນຄ້າ!', 'error');
+            return;
         }
+        
+        const existing = cart.find(i => i.barcode === data.barcode);
+        const currentQtyInCart = existing ? existing.qty : 0;
+        
+        if (currentQtyInCart + 1 > data.stock_qty) {
+            showToast(`ສິນຄ້າເຫຼືອພຽງ ${data.stock_qty} ຊິ້ນ`, 'warning');
+            return;
+        }
+        
+        if (existing) {
+            existing.qty++;
+        } else {
+            cart.push({ ...data, qty: 1 });
+        }
+        drawCart();
+        showToast(`ເພີ່ມ ${data.name} ສຳເລັດ`, 'success');
+    } catch (err) {
+        console.error(err);
+        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
     }
-    
-    // If offline or online failed, get from cache
-    if (!product) {
-        const db = await openOfflineDB();
-        product = await new Promise((resolve) => {
-            const tx = db.transaction(['products'], 'readonly');
-            const store = tx.objectStore('products');
-            const request = store.get(barcode.trim());
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => resolve(null);
-        });
-    }
-    
-    if (!product) {
-        showToast('ບໍ່ພົບສິນຄ້າ!', 'error');
-        return;
-    }
-    
-    const existing = cart.find(i => i.barcode === product.barcode);
-    const currentQtyInCart = existing ? existing.qty : 0;
-    
-    if (currentQtyInCart + 1 > product.stock_qty) {
-        showToast(`ສິນຄ້າເຫຼືອພຽງ ${product.stock_qty} ຊິ້ນ`, 'warning');
-        return;
-    }
-    
-    if (existing) {
-        existing.qty++;
-    } else {
-        cart.push({ ...product, qty: 1 });
-    }
-    drawCart();
-    showToast(`ເພີ່ມ ${product.name} ສຳເລັດ`, 'success');
 }
 
 function manualSearch() {
@@ -1095,7 +959,6 @@ async function processSale() {
         const pointsEarned = Math.floor(finalTotal / window.POINTS_RATE);
         const invoiceNumber = generateInvoiceNumber();
         
-        // Cash payment handling
         if (paymentMethod === 'Cash') {
             const defaultAmount = Math.ceil(finalTotal / 1000) * 1000;
             const formattedDefault = defaultAmount.toLocaleString('lo-LA');
@@ -1127,7 +990,6 @@ async function processSale() {
             }
         }
         
-        // Verify stock
         for (const item of cart) {
             const { data: product } = await window.supabaseClient
                 .from('pos_products')
@@ -1139,7 +1001,6 @@ async function processSale() {
             if (product.stock_qty < item.qty) throw new Error(`Insufficient stock for ${item.name}`);
         }
         
-        // Update inventory
         for (const item of cart) {
             const { data: product } = await window.supabaseClient
                 .from('pos_products')
@@ -1155,52 +1016,38 @@ async function processSale() {
             }
         }
         
-        const saleData = {
-            invoice_number: invoiceNumber,
-            items: cart,
-            subtotal: subtotal,
-            tax_amount: tax,
-            discount_amount: currentDiscount,
-            total_amount: finalTotal,
-            payment_method: paymentMethod,
-            status: 'COMPLETED',
-            cashier_name: cashierName,
-            customer_phone: selectedCustomer?.phone || null,
-            points_earned: pointsEarned,
-            points_redeemed: appliedPoints
-        };
+        const { data, error } = await window.supabaseClient
+            .from('pos_sales')
+            .insert([{
+                invoice_number: invoiceNumber,
+                items: cart,
+                subtotal: subtotal,
+                tax_amount: tax,
+                discount_amount: currentDiscount,
+                total_amount: finalTotal,
+                payment_method: paymentMethod,
+                status: 'COMPLETED',
+                cashier_name: cashierName,
+                customer_phone: selectedCustomer?.phone || null,
+                points_earned: pointsEarned,
+                points_redeemed: appliedPoints
+            }])
+            .select();
         
-        if (isOnline) {
-            // Online: Save directly
-            const { data, error } = await window.supabaseClient
-                .from('pos_sales')
-                .insert([saleData])
-                .select();
-            
-            if (error) throw error;
-            
-            if (selectedCustomer) {
-                const newPoints = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
-                await window.supabaseClient
-                    .from('pos_customers')
-                    .update({ points: newPoints, total_spent: (selectedCustomer.total_spent || 0) + finalTotal })
-                    .eq('phone', selectedCustomer.phone);
-            }
-            
-            await markCustomerDisplayPaid();
-            printReceipt(data[0].id, finalTotal, pointsEarned);
-            
-        } else {
-            // Offline: Save locally
-            await saveOfflineSale(saleData);
-            
-            // Generate temporary ID for receipt
-            const tempId = 'OFFLINE-' + Date.now();
-            printReceipt(tempId, finalTotal, pointsEarned);
-            showToast('✅ ບັນທຶກແບບ Offline, ຈະອັບໂຫຼດເມື່ອມີອິນເຕີເນັດ', 'success');
+        if (error) throw error;
+        
+        if (selectedCustomer) {
+            const newPoints = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
+            await window.supabaseClient
+                .from('pos_customers')
+                .update({ points: newPoints, total_spent: (selectedCustomer.total_spent || 0) + finalTotal })
+                .eq('phone', selectedCustomer.phone);
         }
         
-        // Clear cart
+        await markCustomerDisplayPaid();
+        
+        printReceipt(data[0].id, finalTotal, pointsEarned);
+        
         cart = [];
         selectedCustomer = null;
         appliedPoints = 0;
@@ -1208,6 +1055,8 @@ async function processSale() {
         document.getElementById('customer-phone').value = '';
         document.getElementById('customer-info').style.display = 'none';
         drawCart();
+        
+        showToast(`ຊຳລະສຳເລັດ! ${formatLAK(finalTotal)}`, 'success');
         
     } catch (err) {
         console.error('Sale error:', err);
@@ -1218,7 +1067,7 @@ async function processSale() {
         document.getElementById('barcode-input').focus();
     }
 }
-    
+
 // =====================================================
 // INITIALIZATION
 // =====================================================
@@ -1239,7 +1088,6 @@ function init() {
     loadHoldBills();
     drawCart();
     document.getElementById('barcode-input').focus();
-    cacheProductsOffline(); 
 }
 
 init();
