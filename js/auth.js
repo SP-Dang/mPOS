@@ -63,6 +63,11 @@ function checkAuth() {
 // Logout
 function handleLogout() {
     if (confirm('ຕ້ອງການອອກຈາກລະບົບ?')) {
+        // Clear the customer display first
+        if (window.supabaseClient && typeof clearCart === 'function') {
+            clearCart();
+        }
+        // Then clear localStorage and redirect
         localStorage.clear();
         window.location.href = 'login.html';
     }
