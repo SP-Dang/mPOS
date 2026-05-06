@@ -319,7 +319,7 @@
         
         <div class="cart-table-container">
             <table class="cart-table">
-                <thead><tr><th>ສິນຄ້າ</th><th>ລາຄາ</th><th>ຈຳນວນ</th><th>ລວມ</th><th></th></tr></thead>
+                <thead><tr><th>ສິນຄ້າ</th><th>ລາຄາ</th><th>ຈຳນວນ</th><th>ລວມ</th><th></th></table></thead>
                 <tbody id="cart-body">
                     <tr><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>
                 </tbody>
@@ -361,24 +361,17 @@
 <!-- Receipt Template -->
 <div id="receipt-template" style="display: none;">
     <div class="receipt-print" style="text-align: center; font-family: monospace;">
-        <!-- Shop Header with Address -->
         <div style="border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 5px;">
             <h3 style="margin: 0; font-size: 14px;">LSM RETAIL</h3>
             <p style="margin: 2px 0; font-size: 9px;">ບ້ານ ............., ເມືອງ ............., ແຂວງ .........</p>
             <p style="margin: 2px 0; font-size: 9px;">ໂທ: 02055348882 | ອາກອນ: 7%</p>
             <p id="receipt-datetime" style="margin: 3px 0; font-size: 9px;"></p>
         </div>
-        
-        <!-- Customer Info -->
         <div id="receipt-customer-info" style="font-size: 9px; text-align: left; margin: 5px 0; padding: 3px 0;"></div>
-        
-        <!-- Order Info -->
         <div style="font-size: 10px; text-align: left; margin: 3px 0;">
             <div>ເລກທີບິນ: <b id="receipt-order-id"></b></div>
             <div>ພະນັກງານ: <span id="receipt-cashier"></span></div>
         </div>
-        
-        <!-- Items List -->
         <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 5px 0; margin: 5px 0;">
             <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10px; margin-bottom: 3px;">
                 <span>ສິນຄ້າ</span>
@@ -386,22 +379,12 @@
             </div>
             <div id="receipt-items-list" style="font-size: 9px;"></div>
         </div>
-        
-        <!-- Totals - NO border line inside -->
         <div id="receipt-totals" style="font-size: 9px; text-align: left; margin: 5px 0;"></div>
-        
-        <!-- Points Info -->
         <div id="receipt-points-info" style="font-size: 9px; text-align: left; margin: 5px 0; padding: 3px 0;"></div>
-        
-        <!-- Dotted line after points total -->
         <div style="border-top: 1px dotted #000; margin: 5px 0;"></div>
-        
-        <!-- Barcode -->
         <div style="margin: 8px 0; text-align: center;">
             <svg id="receipt-barcode" width="140" height="30"></svg>
         </div>
-        
-        <!-- Footer -->
         <div style="padding-top: 5px; margin-top: 5px; font-size: 8px; text-align: center;">
             ຂອບໃຈທີ່ໃຊ້ບໍລິການ<br>
             mPOS<br>
@@ -418,7 +401,7 @@
 <!-- PAGE-SPECIFIC CODE -->
 <script>
 // =====================================================
-// POS CHECKOUT - FULL FEATURES (Hold Bill, Stock Validation)
+// POS CHECKOUT - FULL FEATURES WITH CUSTOMER DISPLAY
 // =====================================================
 
 // State
@@ -429,11 +412,74 @@ let appliedPoints = 0;
 let currentDiscount = 0;
 let holdBills = [];
 
-// Calculate totals
+const CUSTOMER_DISPLAY_ID = "main-terminal";
+
+// =====================================================
+// CUSTOMER DISPLAY FUNCTIONS
+// =====================================================
+
+// Generate QR string for payment
+function generateQRString(amount) {
+    if (amount <= 0) return '';
+    // Simplified QR generation - you can replace with your CRC16 logic
+    const amountStr = Math.round(amount).toString();
+    return `00020101021138670016A00526628466257701082771041802030010324QDZNRPLTFVYIIIOJNUCUZYGC530341854${amountStr}5802LA6304`;
+}
+
+// Update customer display with current cart and payment method
+async function updateCustomerDisplay() {
+    if (!window.supabaseClient) return;
+    
+    try {
+        const { total } = calculateTotals();
+        const qrString = paymentMethod === 'QR Code' && total > 0 ? generateQRString(total) : '';
+        
+        const { error } = await window.supabaseClient
+            .from('pos_customer_display')
+            .upsert({
+                id: CUSTOMER_DISPLAY_ID,
+                amount: total,
+                qr_string: qrString,
+                status: 'PENDING',
+                items: cart,
+                updated_at: new Date().toISOString()
+            });
+        
+        if (error) {
+            console.error('Customer display update error:', error);
+        } else {
+            console.log('📺 Customer display updated');
+        }
+    } catch (err) {
+        console.error('Failed to update customer display:', err);
+    }
+}
+
+// Mark customer display as PAID after sale
+async function markCustomerDisplayPaid() {
+    if (!window.supabaseClient) return;
+    
+    try {
+        const { error } = await window.supabaseClient
+            .from('pos_customer_display')
+            .upsert({
+                id: CUSTOMER_DISPLAY_ID,
+                status: 'PAID',
+                updated_at: new Date().toISOString()
+            });
+        
+        if (error) console.error('Mark paid error:', error);
+    } catch (err) {
+        console.error('Failed to mark paid:', err);
+    }
+}
+
+// =====================================================
+// CORE FUNCTIONS
+// =====================================================
+
 function calculateTotals() {
-    // retail_price already includes VAT
     const total = cart.reduce((sum, item) => sum + (item.retail_price * item.qty), 0) - currentDiscount;
-    // Calculate VAT backward from total (VAT is included in the price)
     const tax = total * (window.TAX_RATE / (100 + window.TAX_RATE));
     const subtotal = total - tax;
     return { subtotal, tax, total };
@@ -460,6 +506,7 @@ function drawCart() {
     if (cart.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>';
         updateDisplay();
+        updateCustomerDisplay();
         return;
     }
     
@@ -473,6 +520,7 @@ function drawCart() {
         </tr>
     `).join('');
     updateDisplay();
+    updateCustomerDisplay();
 }
 
 function adjustQuantity(idx, delta) {
@@ -483,7 +531,6 @@ function adjustQuantity(idx, delta) {
         return;
     }
     
-    // Check stock before increasing quantity
     if (delta > 0 && newQty > cart[idx].stock_qty) {
         showToast(`ສິນຄ້າເຫຼືອພຽງ ${cart[idx].stock_qty} ຊິ້ນ`, 'warning');
         return;
@@ -632,7 +679,6 @@ function updatePaymentMethodUI() {
 async function searchProduct(barcode) {
     if (!barcode.trim()) return;
     
-    // Stock validation - check current stock before adding
     try {
         const { data, error } = await window.supabaseClient
             .from('pos_products')
@@ -645,7 +691,6 @@ async function searchProduct(barcode) {
             return;
         }
         
-        // Check if adding 1 more would exceed stock
         const existing = cart.find(i => i.barcode === data.barcode);
         const currentQtyInCart = existing ? existing.qty : 0;
         
@@ -714,6 +759,7 @@ function setPaymentMethod(method, btn) {
     paymentMethod = method;
     document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    updateCustomerDisplay();
 }
 
 async function applyPoints() {
@@ -725,8 +771,6 @@ async function applyPoints() {
     const { subtotal, tax } = calculateTotals();
     const maxPointsValue = Math.floor((subtotal + tax) / window.POINTS_VALUE);
     const availablePoints = Math.min(selectedCustomer.points, maxPointsValue);
-    // and later:
-    currentDiscount = appliedPoints * window.POINTS_VALUE;
     
     if (availablePoints <= 0) {
         showToast('ຄະແນນບໍ່ພຽງພໍ', 'warning');
@@ -740,23 +784,23 @@ async function applyPoints() {
         currentDiscount = appliedPoints * window.POINTS_VALUE;
         updateDisplay();
         showToast(`ໃຊ້ ${appliedPoints} ຄະແນນ, ຫຼຸດ ${formatLAK(currentDiscount)}`, 'success');
+        updateCustomerDisplay();
     }
 }
 
 // =====================================================
 // RECEIPT & SALE FUNCTIONS
 // =====================================================
+
 function printReceipt(orderId, total, pointsEarned) {
     const now = new Date();
     const shortId = orderId.substring(0, 8).toUpperCase();
     const cashierName = getCurrentUser().name || 'Cashier';
     
-    // Set basic info
     document.getElementById('receipt-datetime').innerHTML = now.toLocaleString('lo-LA');
     document.getElementById('receipt-order-id').innerHTML = shortId;
     document.getElementById('receipt-cashier').innerHTML = cashierName;
     
-    // Customer info (includes points before and after)
     let customerHtml = '';
     if (selectedCustomer) {
         const newPointsTotal = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
@@ -788,22 +832,19 @@ function printReceipt(orderId, total, pointsEarned) {
                 <span><b>⭐ ${newPointsTotal.toLocaleString()}</b></span>
             </div>
         `;
-    } else {
-        if (pointsEarned > 0) {
-            customerHtml = `
-                <div style="display: flex; justify-content: space-between;">
-                    <span>ຄະແນນທີ່ໄດ້ຮັບ:</span>
-                    <span style="color: #10b981;">+ ${pointsEarned.toLocaleString()}</span>
-                </div>
-                <div style="font-size: 8px; color: #64748b; margin-top: 3px;">
-                    ສະສົມຄະແນນເພື່ອສ່ວນຫຼຸດໃນຄັ້ງຕໍ່ໄປ
-                </div>
-            `;
-        }
+    } else if (pointsEarned > 0) {
+        customerHtml = `
+            <div style="display: flex; justify-content: space-between;">
+                <span>ຄະແນນທີ່ໄດ້ຮັບ:</span>
+                <span style="color: #10b981;">+ ${pointsEarned.toLocaleString()}</span>
+            </div>
+            <div style="font-size: 8px; color: #64748b; margin-top: 3px;">
+                ສະສົມຄະແນນເພື່ອສ່ວນຫຼຸດໃນຄັ້ງຕໍ່ໄປ
+            </div>
+        `;
     }
     document.getElementById('receipt-customer-info').innerHTML = customerHtml;
     
-    // Items list with better formatting
     const itemsHtml = cart.map(item => `
         <div style="display: flex; justify-content: space-between; margin-bottom: 3px; text-align: left;">
             <div style="flex: 2; text-align: left;">
@@ -817,7 +858,6 @@ function printReceipt(orderId, total, pointsEarned) {
     `).join('');
     document.getElementById('receipt-items-list').innerHTML = itemsHtml;
     
-    // Totals with better formatting
     const { subtotal, tax } = calculateTotals();
     const finalTotal = subtotal + tax - currentDiscount;
     
@@ -841,26 +881,24 @@ function printReceipt(orderId, total, pointsEarned) {
         `;
     }
     
-  totalsHtml += `
-    <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 5px;">
-        <span>ຍອດລວມ:</span>
-        <span>${formatLAK(finalTotal)}</span>
-    </div>
-    <div style="display: flex; justify-content: space-between; margin-top: 3px;">
-        <span>ຊຳລະດ້ວຍ:</span>
-        <span>${paymentMethod}</span>
-    </div>
-`;
+    totalsHtml += `
+        <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 5px;">
+            <span>ຍອດລວມ:</span>
+            <span>${formatLAK(finalTotal)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 3px;">
+            <span>ຊຳລະດ້ວຍ:</span>
+            <span>${paymentMethod}</span>
+        </div>
+    `;
     document.getElementById('receipt-totals').innerHTML = totalsHtml;
     
-    // Points summary - NO LINE here, just text
     let pointsFooterHtml = '';
     if (selectedCustomer && pointsEarned > 0) {
         pointsFooterHtml = `<div style="text-align: center; font-size: 8px;">⭐ ສະສົມຄະແນນ ${pointsEarned} ສໍາລັບການຊື້ຄັ້ງຕໍ່ໄປ</div>`;
     }
     document.getElementById('receipt-points-info').innerHTML = pointsFooterHtml;
     
-    // Generate barcode
     JsBarcode("#receipt-barcode", shortId, { 
         format: "CODE128", 
         width: 1.2, 
@@ -870,7 +908,6 @@ function printReceipt(orderId, total, pointsEarned) {
         textMargin: 2
     });
     
-    // Print
     setTimeout(() => {
         const content = document.querySelector('.receipt-print').cloneNode(true);
         const win = window.open('', '_blank');
@@ -879,18 +916,8 @@ function printReceipt(orderId, total, pointsEarned) {
         <head>
             <title>ໃບຮັບເງິນ</title>
             <style>
-                @page { 
-                    size: 80mm; 
-                    margin: 0;
-                }
-                body { 
-                    font-family: 'Phetsarath', 'Noto Sans Lao', 'Courier New', monospace;
-                    font-size: 11px;
-                    width: 80mm;
-                    margin: 0;
-                    padding: 6px;
-                    line-height: 1.35;
-                }
+                @page { size: 80mm; margin: 0; }
+                body { font-family: monospace; font-size: 11px; width: 80mm; margin: 0; padding: 6px; line-height: 1.35; }
                 .receipt-print { width: 100%; }
             </style>
         </head>
@@ -900,6 +927,7 @@ function printReceipt(orderId, total, pointsEarned) {
         win.close();
     }, 200);
 }
+
 async function processSale() {
     if (cart.length === 0) {
         showToast('ກະລຸນາເພີ່ມສິນຄ້າ', 'warning');
@@ -917,43 +945,37 @@ async function processSale() {
         const pointsEarned = Math.floor(finalTotal / window.POINTS_RATE);
         const invoiceNumber = generateInvoiceNumber();
         
-        // Cash payment with change
         if (paymentMethod === 'Cash') {
-    const defaultAmount = Math.ceil(finalTotal / 1000) * 1000;
-    const formattedDefault = defaultAmount.toLocaleString('lo-LA');
-    const received = prompt(
-        `ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, 
-        formattedDefault
-    );
-    
-    if (!received) {
-        btn.disabled = false;
-        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-        return;
-    }
-    
-    // Remove commas from input before parsing
-    const cashReceived = parseFloat(received.replace(/,/g, ''));
-    if (isNaN(cashReceived)) {
-        showToast('ກະລຸນາປ້ອນຈຳນວນເງິນ', 'error');
-        btn.disabled = false;
-        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-        return;
-    }
-    
-    const change = cashReceived - finalTotal;
-    if (change < 0) {
-        showToast('ເງິນບໍ່ພໍ!', 'error');
-        btn.disabled = false;
-        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-        return;
-    }
-    if (change > 0) {
-        showToast(`ເງິນທອນ: ${formatLAK(change)}`, 'info');
-    }
-}
+            const defaultAmount = Math.ceil(finalTotal / 1000) * 1000;
+            const formattedDefault = defaultAmount.toLocaleString('lo-LA');
+            const received = prompt(`ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, formattedDefault);
+            
+            if (!received) {
+                btn.disabled = false;
+                btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+                return;
+            }
+            
+            const cashReceived = parseFloat(received.replace(/,/g, ''));
+            if (isNaN(cashReceived)) {
+                showToast('ກະລຸນາປ້ອນຈຳນວນເງິນ', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+                return;
+            }
+            
+            const change = cashReceived - finalTotal;
+            if (change < 0) {
+                showToast('ເງິນບໍ່ພໍ!', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+                return;
+            }
+            if (change > 0) {
+                showToast(`ເງິນທອນ: ${formatLAK(change)}`, 'info');
+            }
+        }
         
-        // VERIFY STOCK BEFORE DEDUCTING (Important!)
         for (const item of cart) {
             const { data: product } = await window.supabaseClient
                 .from('pos_products')
@@ -961,18 +983,10 @@ async function processSale() {
                 .eq('barcode', item.barcode)
                 .single();
             
-            if (!product) {
-                showToast(`ບໍ່ພົບສິນຄ້າ: ${item.name}`, 'error');
-                throw new Error('Product not found');
-            }
-            
-            if (product.stock_qty < item.qty) {
-                showToast(`ສິນຄ້າ ${item.name} ມີເຫຼືອພຽງ ${product.stock_qty} ຊິ້ນ`, 'error');
-                throw new Error('Insufficient stock');
-            }
+            if (!product) throw new Error(`Product not found: ${item.name}`);
+            if (product.stock_qty < item.qty) throw new Error(`Insufficient stock for ${item.name}`);
         }
         
-        // UPDATE INVENTORY
         for (const item of cart) {
             const { data: product } = await window.supabaseClient
                 .from('pos_products')
@@ -985,11 +999,9 @@ async function processSale() {
                     .from('pos_products')
                     .update({ stock_qty: product.stock_qty - item.qty })
                     .eq('barcode', item.barcode);
-                console.log(`✅ Stock updated: ${item.name} → ${product.stock_qty - item.qty}`);
             }
         }
         
-        // SAVE SALE
         const { data, error } = await window.supabaseClient
             .from('pos_sales')
             .insert([{
@@ -1010,22 +1022,19 @@ async function processSale() {
         
         if (error) throw error;
         
-        // UPDATE CUSTOMER POINTS
         if (selectedCustomer) {
             const newPoints = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
             await window.supabaseClient
                 .from('pos_customers')
-                .update({ 
-                    points: newPoints,
-                    total_spent: (selectedCustomer.total_spent || 0) + finalTotal
-                })
+                .update({ points: newPoints, total_spent: (selectedCustomer.total_spent || 0) + finalTotal })
                 .eq('phone', selectedCustomer.phone);
         }
         
-        // PRINT RECEIPT
+        // Mark customer display as PAID
+        await markCustomerDisplayPaid();
+        
         printReceipt(data[0].id, finalTotal, pointsEarned);
         
-        // CLEAR CART
         cart = [];
         selectedCustomer = null;
         appliedPoints = 0;
@@ -1050,7 +1059,6 @@ async function processSale() {
 // INITIALIZATION
 // =====================================================
 
-// Event listeners
 document.getElementById('barcode-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         searchProduct(e.target.value);
