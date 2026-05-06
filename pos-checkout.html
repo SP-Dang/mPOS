@@ -319,9 +319,9 @@
         
         <div class="cart-table-container">
             <table class="cart-table">
-                <thead><tr><th>ສິນຄ້າ</th><th>ລາຄາ</th><th>ຈຳນວນ</th><th>ລວມ</th><th></th></table></thead>
+                <thead><tr><th>ສິນຄ້າ</th><th>ລາຄາ</th><th>ຈຳນວນ</th><th>ລວມ</th><th></th></tr></thead>
                 <tbody id="cart-body">
-                    <tr><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ</td></tr>
+                    <tr><td colspan="5" class="empty-cart">🛍️ ຍັງບໍ່ມີສິນຄ້າ<br>ກະລຸນາສະແກນບາໂຄດ<body><body>
                 </tbody>
             </table>
         </div>
@@ -344,7 +344,7 @@
         </div>
         
         <div class="total-card">
-            <div class="total-row"><span>ເປັນເງິນ</span><span id="subtotal-display">₭0</span></div>
+            <div class="total-row"><span>ຍອດຍ່ອຍ</span><span id="subtotal-display">₭0</span></div>
             <div class="total-row"><span>ອາກອນ (7%)</span><span id="tax-display">₭0</span></div>
             <div class="total-row" id="discount-row" style="display: none;"><span>ສ່ວນຫຼຸດ</span><span id="discount-display">₭0</span></div>
             <div class="grand-total"><div>ຍອດລວມທັງໝົດ</div><div id="grand-total">₭0</div></div>
@@ -414,6 +414,22 @@ let holdBills = [];
 
 const CUSTOMER_DISPLAY_ID = "main-terminal";
 
+// Format currency (fallback if not in utils)
+function formatLAK(amount) {
+    if (isNaN(amount) || amount === undefined) return '₭0';
+    return new Intl.NumberFormat('lo-LA').format(Math.round(amount)) + ' ₭';
+}
+
+// Generate invoice number
+function generateInvoiceNumber() {
+    const today = new Date();
+    const dateStr = today.getFullYear().toString().slice(-2) + 
+                   (today.getMonth() + 1).toString().padStart(2, '0') + 
+                   today.getDate().toString().padStart(2, '0');
+    const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `INV-${dateStr}-${randomNum}`;
+}
+
 // =====================================================
 // CUSTOMER DISPLAY FUNCTIONS
 // =====================================================
@@ -421,12 +437,11 @@ const CUSTOMER_DISPLAY_ID = "main-terminal";
 // Generate QR string for payment
 function generateQRString(amount) {
     if (amount <= 0) return '';
-    // Simplified QR generation - you can replace with your CRC16 logic
     const amountStr = Math.round(amount).toString();
     return `00020101021138670016A00526628466257701082771041802030010324QDZNRPLTFVYIIIOJNUCUZYGC530341854${amountStr}5802LA6304`;
 }
 
-// Update customer display with current cart and payment method
+// Update customer display
 async function updateCustomerDisplay() {
     if (!window.supabaseClient) return;
     
@@ -434,7 +449,7 @@ async function updateCustomerDisplay() {
         const { total } = calculateTotals();
         const qrString = paymentMethod === 'QR Code' && total > 0 ? generateQRString(total) : '';
         
-        const { error } = await window.supabaseClient
+        await window.supabaseClient
             .from('pos_customer_display')
             .upsert({
                 id: CUSTOMER_DISPLAY_ID,
@@ -444,33 +459,26 @@ async function updateCustomerDisplay() {
                 items: cart,
                 updated_at: new Date().toISOString()
             });
-        
-        if (error) {
-            console.error('Customer display update error:', error);
-        } else {
-            console.log('📺 Customer display updated');
-        }
+        console.log('📺 Customer display updated');
     } catch (err) {
-        console.error('Failed to update customer display:', err);
+        console.error('Customer display error:', err);
     }
 }
 
-// Mark customer display as PAID after sale
+// Mark as paid
 async function markCustomerDisplayPaid() {
     if (!window.supabaseClient) return;
     
     try {
-        const { error } = await window.supabaseClient
+        await window.supabaseClient
             .from('pos_customer_display')
             .upsert({
                 id: CUSTOMER_DISPLAY_ID,
                 status: 'PAID',
                 updated_at: new Date().toISOString()
             });
-        
-        if (error) console.error('Mark paid error:', error);
     } catch (err) {
-        console.error('Failed to mark paid:', err);
+        console.error('Mark paid error:', err);
     }
 }
 
@@ -487,15 +495,21 @@ function calculateTotals() {
 
 function updateDisplay() {
     const { subtotal, tax, total } = calculateTotals();
-    document.getElementById('subtotal-display').innerHTML = formatLAK(subtotal);
-    document.getElementById('tax-display').innerHTML = formatLAK(tax);
-    document.getElementById('grand-total').innerHTML = formatLAK(total);
+    const subtotalEl = document.getElementById('subtotal-display');
+    const taxEl = document.getElementById('tax-display');
+    const grandTotalEl = document.getElementById('grand-total');
+    const discountRow = document.getElementById('discount-row');
+    const discountDisplay = document.getElementById('discount-display');
+    
+    if (subtotalEl) subtotalEl.innerHTML = formatLAK(subtotal);
+    if (taxEl) taxEl.innerHTML = formatLAK(tax);
+    if (grandTotalEl) grandTotalEl.innerHTML = formatLAK(total);
     
     if (currentDiscount > 0) {
-        document.getElementById('discount-row').style.display = 'flex';
-        document.getElementById('discount-display').innerHTML = `-${formatLAK(currentDiscount)}`;
+        if (discountRow) discountRow.style.display = 'flex';
+        if (discountDisplay) discountDisplay.innerHTML = `-${formatLAK(currentDiscount)}`;
     } else {
-        document.getElementById('discount-row').style.display = 'none';
+        if (discountRow) discountRow.style.display = 'none';
     }
 }
 
@@ -863,7 +877,7 @@ function printReceipt(orderId, total, pointsEarned) {
     
     let totalsHtml = `
         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-            <span>ເປັນເງິນ:</span>
+            <span>ຍອດຍ່ອຍ:</span>
             <span>${formatLAK(subtotal)}</span>
         </div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
@@ -1030,7 +1044,6 @@ async function processSale() {
                 .eq('phone', selectedCustomer.phone);
         }
         
-        // Mark customer display as PAID
         await markCustomerDisplayPaid();
         
         printReceipt(data[0].id, finalTotal, pointsEarned);
