@@ -900,41 +900,155 @@ function printReceipt(orderId, total, pointsEarned) {
     const shortId = orderId.substring(0, 8).toUpperCase();
     const cashierName = getCurrentUser().name || 'Cashier';
     
+    // Update the hidden receipt template
     document.getElementById('receipt-datetime').innerHTML = now.toLocaleString('lo-LA');
     document.getElementById('receipt-order-id').innerHTML = shortId;
     document.getElementById('receipt-cashier').innerHTML = cashierName;
     
+    // Customer info with full layout
     let customerHtml = '';
     if (selectedCustomer) {
         const newPointsTotal = (selectedCustomer.points || 0) + pointsEarned - appliedPoints;
-        customerHtml = `<div>ຊື່: ${selectedCustomer.name}</div><div>ເບີ: ${selectedCustomer.phone}</div><div>ຄະແນນ: ${newPointsTotal}</div>`;
+        customerHtml = `
+            <div style="display: flex; justify-content: space-between;">
+                <span>ຊື່ລູກຄ້າ:</span>
+                <span><b>${selectedCustomer.name}</b></span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>ເບີໂທ:</span>
+                <span>${selectedCustomer.phone}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 3px;">
+                <span>ຄະແນນກ່ອນຊື້:</span>
+                <span>⭐ ${(selectedCustomer.points || 0).toLocaleString()}</span>
+            </div>
+            ${appliedPoints > 0 ? `
+            <div style="display: flex; justify-content: space-between;">
+                <span>ຄະແນນທີ່ໃຊ້:</span>
+                <span style="color: #ef4444;">- ${appliedPoints.toLocaleString()}</span>
+            </div>
+            ` : ''}
+            <div style="display: flex; justify-content: space-between;">
+                <span>ຄະແນນທີ່ໄດ້ຮັບ:</span>
+                <span style="color: #10b981;">+ ${pointsEarned.toLocaleString()}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 3px;">
+                <span><b>ຄະແນນທັງໝົດ:</b></span>
+                <span><b>⭐ ${newPointsTotal.toLocaleString()}</b></span>
+            </div>
+        `;
+    } else if (pointsEarned > 0) {
+        customerHtml = `
+            <div style="display: flex; justify-content: space-between;">
+                <span>ຄະແນນທີ່ໄດ້ຮັບ:</span>
+                <span style="color: #10b981;">+ ${pointsEarned.toLocaleString()}</span>
+            </div>
+            <div style="font-size: 8px; color: #64748b; margin-top: 3px;">
+                ສະສົມຄະແນນເພື່ອສ່ວນຫຼຸດໃນຄັ້ງຕໍ່ໄປ
+            </div>
+        `;
     }
     document.getElementById('receipt-customer-info').innerHTML = customerHtml;
     
-    const itemsHtml = cart.map(item => `<div>${item.name} x${item.qty} = ${formatLAK(item.retail_price * item.qty)}</div>`).join('');
+    // Items list with original layout
+    const itemsHtml = cart.map(item => `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 3px; text-align: left;">
+            <div style="flex: 2; text-align: left;">
+                <span>${item.name}</span>
+                <span style="font-size: 8px; color: #666; margin-left: 5px;">x${item.qty}</span>
+            </div>
+            <div style="text-align: right;">
+                ${formatLAK(item.retail_price * item.qty)}
+            </div>
+        </div>
+    `).join('');
     document.getElementById('receipt-items-list').innerHTML = itemsHtml;
     
+    // Totals with original layout
     const { subtotal, tax } = calculateTotals();
     const finalTotal = subtotal + tax - currentDiscount;
-    document.getElementById('receipt-totals').innerHTML = `
-        <div>ຍອດຍ່ອຍ: ${formatLAK(subtotal)}</div>
-        <div>ອາກອນ 7%: ${formatLAK(tax)}</div>
-        ${currentDiscount > 0 ? `<div>ສ່ວນຫຼຸດ: -${formatLAK(currentDiscount)}</div>` : ''}
-        <div><b>ລວມ: ${formatLAK(finalTotal)}</b></div>
-        <div>ຊຳລະ: ${paymentMethod}</div>
+    
+    let totalsHtml = `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+            <span>ຍອດຍ່ອຍ:</span>
+            <span>${formatLAK(subtotal)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+            <span>ອາກອນ (7%):</span>
+            <span>${formatLAK(tax)}</span>
+        </div>
     `;
     
-    JsBarcode("#receipt-barcode", shortId, { format: "CODE128", width: 1.2, height: 30, displayValue: true });
+    if (currentDiscount > 0) {
+        totalsHtml += `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 2px; color: #ef4444;">
+                <span>ສ່ວນຫຼຸດ:</span>
+                <span>-${formatLAK(currentDiscount)}</span>
+            </div>
+        `;
+    }
     
+    totalsHtml += `
+        <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 5px;">
+            <span>ຍອດລວມ:</span>
+            <span>${formatLAK(finalTotal)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 3px;">
+            <span>ຊຳລະດ້ວຍ:</span>
+            <span>${paymentMethod}</span>
+        </div>
+    `;
+    document.getElementById('receipt-totals').innerHTML = totalsHtml;
+    
+    // Points footer
+    let pointsFooterHtml = '';
+    if (selectedCustomer && pointsEarned > 0) {
+        pointsFooterHtml = `<div style="text-align: center; font-size: 8px;">⭐ ສະສົມຄະແນນ ${pointsEarned} ສໍາລັບການຊື້ຄັ້ງຕໍ່ໄປ</div>`;
+    }
+    document.getElementById('receipt-points-info').innerHTML = pointsFooterHtml;
+    
+    // Generate barcode
+    JsBarcode("#receipt-barcode", shortId, { 
+        format: "CODE128", 
+        width: 1.2, 
+        height: 30, 
+        displayValue: true,
+        fontSize: 9,
+        textMargin: 2
+    });
+    
+    // Clone and print (using iframe to avoid popup blocker)
     setTimeout(() => {
         const content = document.querySelector('.receipt-print').cloneNode(true);
         const win = window.open('', '_blank');
-        win.document.write(`<!DOCTYPE html><html><head><title>ໃບຮັບເງິນ</title><style>@page{size:80mm;margin:0}body{font-family:monospace;font-size:11px;width:80mm;margin:0;padding:6px}</style></head><body>${content.outerHTML}</body></html>`);
+        win.document.write(`<!DOCTYPE html>
+        <html>
+        <head>
+            <title>ໃບຮັບເງິນ</title>
+            <style>
+                @page { size: 80mm; margin: 0; }
+                body { 
+                    font-family: 'Phetsarath', 'Courier New', monospace;
+                    font-size: 11px; 
+                    width: 80mm; 
+                    margin: 0; 
+                    padding: 6px; 
+                    line-height: 1.35; 
+                }
+                .receipt-print { width: 100%; }
+                .item-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 3px;
+                }
+            </style>
+        </head>
+        <body>${content.outerHTML}</body>
+        </html>`);
         win.print();
         win.close();
     }, 200);
 }
-
 async function processSale() {
     if (cart.length === 0) {
         showToast('ກະລຸນາເພີ່ມສິນຄ້າ', 'warning');
