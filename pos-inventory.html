@@ -259,26 +259,22 @@
         .save-btn { background: var(--primary); color: white; }
         .cancel-btn { background: #f1f5f9; color: var(--text); }
 
-            .form-group {
-        margin-bottom: 15px;
-    }
-    .form-group label {
-        display: block;
+           #preview-table {
         font-size: 12px;
-        font-weight: 600;
-        color: var(--text);
-        margin-bottom: 5px;
+        overflow-x: auto;
     }
-    .form-group select, .form-group input {
+    #preview-table table {
         width: 100%;
-        padding: 10px;
-        border: 2px solid var(--border);
-        border-radius: 10px;
-        outline: none;
-        font-size: 14px;
+        border-collapse: collapse;
     }
-    .form-group select:focus, .form-group input:focus {
-        border-color: var(--primary);
+    #preview-table th, #preview-table td {
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        text-align: left;
+    }
+    #preview-table th {
+        background: #f8fafc;
+        font-weight: 600;
     }
         
         .toast {
@@ -320,14 +316,14 @@
     <div class="header">
         <h1>📦 ຄັງສິນຄ້າ</h1>
         <div class="search-section">
-        <div class="search-box">
+    <div class="search-box">
         <input type="text" id="search-input" placeholder="ຄົ້ນຫາສິນຄ້າ...">
         <button onclick="searchProducts()">🔍 ຄົ້ນຫາ</button>
-        </div>
+    </div>
     <button class="export-btn" onclick="exportInventory()">📊 ສົ່ງອອກ Excel</button>
-    <button class="export-btn" onclick="bulkPriceUpdate()" style="background: #8b5cf6;">💰 ອັບເດດລາຄາຫຼາຍລາຍການ</button>
+    <button class="export-btn" onclick="openBulkUploadModal()" style="background: #8b5cf6;">📂 ອັບໂຫຼດ CSV/Excel</button>
     <button class="add-btn" onclick="openAddModal()">+ ເພີ່ມສິນຄ້າ</button>
-        </div>
+</div>
     </div>
     
     <div class="stats-bar">
@@ -373,45 +369,41 @@
         <button onclick="goToPage(totalPages)" id="last-page">⏭</button>
     </div>
 </main>
-<!-- Add Bulk Price Modal HERE (before the closing </main> tag) -->
-<div id="bulk-price-modal" class="modal">
-    <div class="modal-content">
-        <h3>💰 ອັບເດດລາຄາຫຼາຍລາຍການ</h3>
+<!-- Bulk Upload Modal -->
+<div id="bulk-upload-modal" class="modal">
+    <div class="modal-content" style="width: 500px;">
+        <h3>📂 ອັບໂຫຼດເພື່ອອັບເດດສິນຄ້າ</h3>
+        
         <div class="form-group">
-            <label>ເລືອກໝວດໝູ່</label>
-            <select id="bulk-category">
-                <option value="">ທັງໝົດ</option>
-                <option value="Drink">ເຄື່ອງດື່ມ</option>
-                <option value="Beer">ເບຍ</option>
-                <option value="Snack">ອາຫານວ່າງ</option>
+            <label>ເລືອກປະເພດການອັບເດດ</label>
+            <select id="update-type">
+                <option value="stock">ອັບເດດສະຕັອກ (Stock)</option>
+                <option value="price">ອັບເດດລາຄາ (Price)</option>
+                <option value="both">ອັບເດດທັງສະຕັອກ ແລະ ລາຄາ</option>
             </select>
         </div>
+        
         <div class="form-group">
-            <label>ປະເພດການປັບລາຄາ</label>
-            <select id="bulk-type">
-                <option value="percent">ເພີ່ມ/ຫຼຸດເປັນເປີເຊັນ (%)</option>
-                <option value="fixed">ເພີ່ມ/ຫຼຸດເປັນຈຳນວນຄົງທີ່ (₭)</option>
-                <option value="set">ຕັ້ງລາຄາໃໝ່ (₭)</option>
-            </select>
+            <label>ດາວໂຫຼດແມ່ແບບ</label>
+            <button onclick="downloadTemplate()" style="background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; margin-bottom: 10px;">📥 ດາວໂຫຼດ Template CSV</button>
         </div>
+        
         <div class="form-group">
-            <label>ການປັບປຸງ</label>
-            <select id="bulk-action">
-                <option value="increase">ເພີ່ມ (+)</option>
-                <option value="decrease">ຫຼຸດ (-)</option>
-            </select>
+            <label>ອັບໂຫຼດໄຟລ໌ (CSV ຫຼື Excel)</label>
+            <input type="file" id="bulk-file" accept=".csv,.xlsx,.xls" style="border: 1px solid var(--border); padding: 10px;">
         </div>
-        <div class="form-group">
-            <label>ຈຳນວນ</label>
-            <input type="number" id="bulk-value" placeholder="ຕົວຢ່າງ: 10 (ໝາຍເຖິງ 10%)">
+        
+        <div id="upload-preview" style="max-height: 300px; overflow-y: auto; margin: 15px 0; display: none;">
+            <h4>ຕົວຢ່າງຂໍ້ມູນ:</h4>
+            <div id="preview-table"></div>
         </div>
+        
         <div class="modal-buttons">
-            <button class="save-btn" onclick="applyBulkPriceUpdate()">ຢືນຢັນການອັບເດດ</button>
-            <button class="cancel-btn" onclick="closeBulkModal()">ຍົກເລີກ</button>
+            <button class="save-btn" onclick="processBulkUpload()">🚀 ເລີ່ມອັບເດດ</button>
+            <button class="cancel-btn" onclick="closeBulkUploadModal()">ຍົກເລີກ</button>
         </div>
     </div>
-</div>
-    
+</div>    
 <!-- Add/Edit Product Modal -->
 <div id="product-modal" class="modal">
     <div class="modal-content">
@@ -726,84 +718,270 @@ function init() {
     loadProducts();
 }
 
-async function bulkPriceUpdate() {
-    document.getElementById('bulk-price-modal').style.display = 'flex';
+// =====================================================
+// BULK UPLOAD FUNCTIONS
+// =====================================================
+
+let uploadedData = [];
+
+function openBulkUploadModal() {
+    document.getElementById('bulk-upload-modal').style.display = 'flex';
+    document.getElementById('bulk-file').value = '';
+    document.getElementById('upload-preview').style.display = 'none';
+    uploadedData = [];
 }
 
-function closeBulkModal() {
-    document.getElementById('bulk-price-modal').style.display = 'none';
+function closeBulkUploadModal() {
+    document.getElementById('bulk-upload-modal').style.display = 'none';
 }
 
-async function applyBulkPriceUpdate() {
-    const category = document.getElementById('bulk-category').value;
-    const type = document.getElementById('bulk-type').value;
-    const action = document.getElementById('bulk-action').value;
-    const value = parseFloat(document.getElementById('bulk-value').value);
+// Download CSV template
+function downloadTemplate() {
+    const template = [
+        ['barcode', 'name', 'stock_qty', 'retail_price'],
+        ['1001', 'ICHITAN GREEN TEA', '50', '18000'],
+        ['1002', 'ນ້ຳດື່ມຫົວເສືອ (ກາງ)', '50', '6000'],
+        ['1003', 'PEPSI (ປ໋ອງ)', '50', '13000']
+    ];
     
-    if (isNaN(value)) {
-        showToast('ກະລຸນາປ້ອນຈຳນວນ', 'error');
-        return;
-    }
-    
-    if (!confirm(`ຢືນຢັນການອັບເດດລາຄາ?`)) return;
-    
-    try {
-        // Get products to update
-        let query = window.supabaseClient.from('pos_products').select('*');
-        if (category) {
-            query = query.eq('category', category);
+    let csvContent = template.map(row => row.join(',')).join('\n');
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', 'inventory_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('ດາວໂຫຼດ Template ສຳເລັດ', 'success');
+}
+
+// Parse uploaded file
+async function parseUploadedFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const data = e.target.result;
+            
+            if (file.name.endsWith('.csv')) {
+                // Parse CSV
+                const lines = data.split(/\r\n|\n/);
+                const headers = lines[0].split(',');
+                const results = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    if (!lines[i].trim()) continue;
+                    const values = lines[i].split(',');
+                    const row = {};
+                    headers.forEach((header, idx) => {
+                        row[header.trim().toLowerCase()] = values[idx] ? values[idx].trim() : '';
+                    });
+                    results.push(row);
+                }
+                resolve(results);
+            } else {
+                // For Excel files, we need to use SheetJS
+                // Since SheetJS is already loaded, we can use it
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const results = XLSX.utils.sheet_to_json(firstSheet);
+                resolve(results);
+            }
+        };
+        
+        if (file.name.endsWith('.csv')) {
+            reader.readAsText(file, 'UTF-8');
+        } else {
+            reader.readAsBinaryString(file);
         }
         
-        const { data: products } = await query;
+        reader.onerror = reject;
+    });
+}
+
+// Show preview of uploaded data
+async function showPreview(file) {
+    if (!file) return;
+    
+    try {
+        const data = await parseUploadedFile(file);
+        uploadedData = data;
         
-        if (!products || products.length === 0) {
-            showToast('ບໍ່ມີສິນຄ້າໃນໝວດນີ້', 'warning');
+        if (uploadedData.length === 0) {
+            showToast('ບໍ່ພົບຂໍ້ມູນໃນໄຟລ໌', 'error');
             return;
         }
         
-        let updatedCount = 0;
+        // Show preview (first 5 rows)
+        const previewRows = uploadedData.slice(0, 5);
+        let html = '<table><thead><tr>';
         
-        for (const product of products) {
-            let newPrice = product.retail_price;
+        // Headers
+        const headers = Object.keys(previewRows[0]);
+        headers.forEach(h => {
+            html += `<th>${h}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        
+        // Rows
+        previewRows.forEach(row => {
+            html += '<tr>';
+            headers.forEach(h => {
+                html += `<td>${row[h] || ''}</td>`;
+            });
+            html += '</tr>';
+        });
+        
+        if (uploadedData.length > 5) {
+            html += `<tr><td colspan="${headers.length}" style="text-align: center;">... ແລະອີກ ${uploadedData.length - 5} ແຖວ</td></tr>`;
+        }
+        
+        html += '</tbody></table>';
+        document.getElementById('preview-table').innerHTML = html;
+        document.getElementById('upload-preview').style.display = 'block';
+        
+        showToast(`ອ່ານຂໍ້ມູນ ${uploadedData.length} ລາຍການສຳເລັດ`, 'success');
+        
+    } catch (err) {
+        console.error(err);
+        showToast('ອ່ານໄຟລ໌ບໍ່ສຳເລັດ', 'error');
+    }
+}
+
+// Process bulk update
+async function processBulkUpload() {
+    const fileInput = document.getElementById('bulk-file');
+    const file = fileInput.files[0];
+    const updateType = document.getElementById('update-type').value;
+    
+    if (!file) {
+        showToast('ກະລຸນາເລືອກໄຟລ໌', 'warning');
+        return;
+    }
+    
+    if (uploadedData.length === 0) {
+        try {
+            uploadedData = await parseUploadedFile(file);
+        } catch (err) {
+            showToast('ອ່ານໄຟລ໌ບໍ່ສຳເລັດ', 'error');
+            return;
+        }
+    }
+    
+    if (uploadedData.length === 0) {
+        showToast('ບໍ່ພົບຂໍ້ມູນ', 'warning');
+        return;
+    }
+    
+    if (!confirm(`ຢືນຢັນການອັບເດດ ${uploadedData.length} ລາຍການ?`)) return;
+    
+    const btn = document.querySelector('#bulk-upload-modal .save-btn');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ ກຳລັງດຳເນີນການ...';
+    
+    let successCount = 0;
+    let errorCount = 0;
+    let errors = [];
+    
+    try {
+        for (const item of uploadedData) {
+            const barcode = item.barcode || item.Barcode;
             
-            if (type === 'percent') {
-                const percentChange = value / 100;
-                if (action === 'increase') {
-                    newPrice = product.retail_price * (1 + percentChange);
-                } else {
-                    newPrice = product.retail_price * (1 - percentChange);
-                }
-            } else if (type === 'fixed') {
-                if (action === 'increase') {
-                    newPrice = product.retail_price + value;
-                } else {
-                    newPrice = product.retail_price - value;
-                }
-            } else if (type === 'set') {
-                newPrice = value;
+            if (!barcode) {
+                errorCount++;
+                errors.push({ barcode: 'ບໍ່ມີ', error: 'ບໍ່ມີບາໂຄດ' });
+                continue;
             }
             
-            // Ensure price isn't negative
-            newPrice = Math.max(0, Math.round(newPrice));
+            // Check if product exists
+            const { data: existing, error: findError } = await window.supabaseClient
+                .from('pos_products')
+                .select('id, barcode, name, stock_qty, retail_price')
+                .eq('barcode', barcode)
+                .single();
             
-            if (newPrice !== product.retail_price) {
-                await window.supabaseClient
+            if (findError || !existing) {
+                errorCount++;
+                errors.push({ barcode: barcode, error: 'ບໍ່ພົບສິນຄ້າ' });
+                continue;
+            }
+            
+            // Prepare update data
+            const updateData = {};
+            
+            if (updateType === 'stock' || updateType === 'both') {
+                const newStock = parseInt(item.stock_qty || item.stock || item.quantity);
+                if (!isNaN(newStock) && newStock !== existing.stock_qty) {
+                    updateData.stock_qty = newStock;
+                }
+            }
+            
+            if (updateType === 'price' || updateType === 'both') {
+                const newPrice = parseFloat(item.retail_price || item.price);
+                if (!isNaN(newPrice) && newPrice > 0 && newPrice !== existing.retail_price) {
+                    updateData.retail_price = newPrice;
+                }
+            }
+            
+            if (Object.keys(updateData).length > 0) {
+                updateData.last_updated = new Date().toISOString();
+                
+                const { error: updateError } = await window.supabaseClient
                     .from('pos_products')
-                    .update({ retail_price: newPrice, last_updated: new Date().toISOString() })
-                    .eq('id', product.id);
-                updatedCount++;
+                    .update(updateData)
+                    .eq('id', existing.id);
+                
+                if (updateError) {
+                    errorCount++;
+                    errors.push({ barcode: barcode, error: updateError.message });
+                } else {
+                    successCount++;
+                }
+            } else {
+                successCount++; // No change needed
             }
         }
         
-        showToast(`ອັບເດດລາຄາ ${updatedCount} ລາຍການສຳເລັດ`, 'success');
-        closeBulkModal();
-        loadProducts(); // Refresh the list
+        // Show result
+        let message = `ອັບເດດສຳເລັດ ${successCount} ລາຍການ`;
+        if (errorCount > 0) {
+            message += `, ຜິດພາດ ${errorCount} ລາຍການ`;
+            console.error('Errors:', errors);
+            
+            // Show detailed errors
+            if (errors.length > 0) {
+                let errorMsg = 'ລາຍການທີ່ຜິດພາດ:\n';
+                errors.slice(0, 10).forEach(e => {
+                    errorMsg += `- ${e.barcode}: ${e.error}\n`;
+                });
+                alert(errorMsg);
+            }
+        }
+        
+        showToast(message, errorCount > 0 ? 'warning' : 'success');
+        
+        if (successCount > 0) {
+            closeBulkUploadModal();
+            loadProducts(); // Refresh the list
+        }
         
     } catch (err) {
         console.error(err);
         showToast('ເກີດຂໍ້ຜິດພາດ: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🚀 ເລີ່ມອັບເດດ';
     }
 }
+
+// Add file input change listener
+document.getElementById('bulk-file')?.addEventListener('change', function(e) {
+    if (this.files && this.files[0]) {
+        showPreview(this.files[0]);
+    }
+});
     
 init();
 </script>
