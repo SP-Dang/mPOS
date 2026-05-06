@@ -284,7 +284,7 @@ async function searchOrder() {
     container.innerHTML = '<div style="text-align: center; padding: 40px;">🔍 ກຳລັງຄົ້ນຫາ...</div>';
     
     try {
-        // Always get fresh data from database
+        // Force fresh data - disable cache
         const { data, error } = await window.supabaseClient
             .from('pos_sales')
             .select('*')
@@ -297,10 +297,10 @@ async function searchOrder() {
             return;
         }
         
-        // Store in cache
-        allSales = data;
+        // Log to see the actual status
+        console.log('All sales data:', data.map(s => ({ id: s.id.substring(0,8), status: s.status })));
         
-        // Filter by short ID (first 8 characters of UUID)
+        // Filter by short ID
         const filtered = data.filter(order => {
             const shortId = order.id.substring(0, 8).toUpperCase();
             return shortId === searchText || shortId.includes(searchText);
@@ -311,6 +311,9 @@ async function searchOrder() {
             return;
         }
         
+        // Log filtered order status
+        console.log('Filtered orders:', filtered.map(o => ({ id: o.id.substring(0,8), status: o.status })));
+        
         container.innerHTML = filtered.map(order => renderOrderCard(order)).join('');
         showToast(`✅ ພົບ ${filtered.length} ລາຍການ`, 'success');
         
@@ -319,7 +322,7 @@ async function searchOrder() {
         container.innerHTML = `<div class="no-results">❌ ເກີດຂໍ້ຜິດພາດ: ${err.message || 'ກະລຸນາລອງໃໝ່'}</div>`;
     }
 }
-
+    
 function renderOrderCard(order) {
     const shortId = order.id.substring(0, 8).toUpperCase();
     // Check status - case insensitive
@@ -417,7 +420,7 @@ async function reprintReceipt(orderId) {
     }
 }
 
- async function processReturn(orderId) {
+async function processReturn(orderId) {
     if (!confirm('ຢືນຢັນການຄືນສິນຄ້າ? ສິນຄ້າຈະຖືກເພີ່ມກັບຄືນສາງ')) return;
     
     const orderCard = document.querySelector(`.order-card[data-order-id="${orderId}"]`);
@@ -428,6 +431,7 @@ async function reprintReceipt(orderId) {
     }
     
     try {
+        // Step 1: Get current order
         const { data: order, error } = await window.supabaseClient
             .from('pos_sales')
             .select('*')
@@ -436,16 +440,19 @@ async function reprintReceipt(orderId) {
         
         if (error) throw error;
         
-        // Check using uppercase
+        console.log('Current order status:', order.status);
+        
+        // Step 2: Check if already refunded
         if (order.status === 'REFUNDED') {
             showToast('ບິນນີ້ໄດ້ຄືນສິນຄ້າແລ້ວ', 'warning');
             if (returnBtn) returnBtn.disabled = false;
+            await searchOrder(); // Refresh to update button
             return;
         }
         
         const items = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]');
         
-        // Restore inventory
+        // Step 3: Restore inventory
         for (const item of items) {
             const { data: product } = await window.supabaseClient
                 .from('pos_products')
@@ -454,24 +461,30 @@ async function reprintReceipt(orderId) {
                 .single();
             
             if (product) {
+                const newQty = product.stock_qty + item.qty;
                 await window.supabaseClient
                     .from('pos_products')
-                    .update({ stock_qty: product.stock_qty + item.qty })
+                    .update({ stock_qty: newQty })
                     .eq('barcode', item.barcode);
+                console.log(`✅ Restored ${item.name}: ${product.stock_qty} → ${newQty}`);
             }
         }
         
-        // UPDATE STATUS TO UPPERCASE 'REFUNDED' (and remove return_processed_by)
-        const { error: updateError } = await window.supabaseClient
+        // Step 4: Update status to REFUNDED
+        const { data: updated, error: updateError } = await window.supabaseClient
             .from('pos_sales')
             .update({ status: 'REFUNDED' })
-            .eq('id', orderId);
+            .eq('id', orderId)
+            .select();
         
         if (updateError) throw updateError;
         
+        console.log('Updated order:', updated);
+        console.log('New status:', updated[0]?.status);
+        
         showToast('ຄືນສິນຄ້າສຳເລັດ', 'success');
         
-        // Refresh to update button
+        // Step 5: Force refresh the search results
         await searchOrder();
         
     } catch (err) {
@@ -483,8 +496,8 @@ async function reprintReceipt(orderId) {
             returnBtn.innerText = '🔄 ຄືນສິນຄ້າ';
         }
     }
-}   
-
+}
+    
 // Event listener for Enter key
 document.getElementById('search-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') searchOrder();
