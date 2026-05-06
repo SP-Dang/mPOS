@@ -2,7 +2,6 @@
 <html lang="lo">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LSM POS | ໜ້າຈໍສະແດງລູກຄ້າ</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -33,7 +32,6 @@
             overflow: hidden;
         }
         
-        /* Left Side: Order Summary */
         .order-details {
             flex: 1;
             padding: 40px;
@@ -98,7 +96,6 @@
             color: var(--primary-dark);
         }
         
-        /* Right Side: QR Payment */
         .payment-side {
             width: 450px;
             background: var(--dark-bg);
@@ -130,11 +127,6 @@
             margin: 10px 0;
         }
         
-        #qrcode-canvas canvas,
-        #qrcode-canvas img {
-            border-radius: 10px;
-        }
-        
         .payment-status {
             margin-top: 20px;
             font-size: 14px;
@@ -163,7 +155,6 @@
             text-align: center;
         }
         
-        /* Animations */
         @keyframes fadeIn {
             from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
@@ -174,13 +165,8 @@
             to { transform: translateX(0); opacity: 1; }
         }
         
-        .item-row {
-            animation: slideIn 0.3s ease;
-        }
-        
-        .thank-you {
-            animation: fadeIn 0.5s ease;
-        }
+        .item-row { animation: slideIn 0.3s ease; }
+        .thank-you { animation: fadeIn 0.5s ease; }
     </style>
 </head>
 <body>
@@ -188,9 +174,7 @@
 <div class="order-details">
     <h1>🛍️ ລາຍການສິນຄ້າຂອງທ່ານ</h1>
     <div class="item-list" id="item-list">
-        <div class="waiting-box">
-            ⏳ ລໍຖ້າລາຍການສິນຄ້າ...
-        </div>
+        <div class="waiting-box">⏳ ລໍຖ້າລາຍການສິນຄ້າ...</div>
     </div>
     <div class="total-section">
         <span class="total-label">ຍອດລວມທັງໝົດ:</span>
@@ -227,7 +211,7 @@
 const SUPABASE_URL = "https://rcjvgyetkukyaexzskmg.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjanZneWV0a3VreWFleHpza21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NzQ2MzUsImV4cCI6MjA5MzQ1MDYzNX0.aNTyK0l1sOYpZ0TdGrmjxIQbafnujQb1hP6dENX_104";
 
-// Terminal ID - this should match what pos-checkout.html uses
+// Terminal ID - must match pos-checkout.html
 const TERMINAL_ID = "main-terminal";
 
 // Create Supabase client
@@ -239,8 +223,18 @@ function formatCurrency(amount) {
     return new Intl.NumberFormat('lo-LA').format(Math.round(amount)) + ' ₭';
 }
 
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Update UI with order data
 function updateUI(data) {
+    console.log('🔄 Updating UI with data:', data);
+    
     // Show payment content, hide thank you
     const paymentContent = document.getElementById('payment-content');
     const thankYouMsg = document.getElementById('thank-you-msg');
@@ -347,19 +341,12 @@ function resetUI() {
     }
 }
 
-// Escape HTML to prevent XSS
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 // Initialize real-time subscription
 function initRealtimeSubscription() {
     console.log('🔄 Initializing customer display...');
+    console.log('📡 Connecting to terminal:', TERMINAL_ID);
     
-    // Subscribe to changes on customer_display table
+    // Subscribe to changes on pos_customer_display table
     const subscription = supabase
         .channel('customer-display-channel')
         .on(
@@ -367,12 +354,13 @@ function initRealtimeSubscription() {
             {
                 event: '*',
                 schema: 'public',
-                table: 'pos_customer_display'
+                table: 'pos_customer_display',
+                filter: `id=eq.${TERMINAL_ID}`
             },
             (payload) => {
                 console.log('📡 Received update:', payload);
                 
-                const data = payload.new || payload.old;
+                const data = payload.new;
                 if (!data) return;
                 
                 if (data.status === 'PAID') {
@@ -392,9 +380,11 @@ function initRealtimeSubscription() {
     return subscription;
 }
 
-// Also listen for initial data on page load
+// Load initial data on page load
 async function loadInitialData() {
     try {
+        console.log('📡 Loading initial data for terminal:', TERMINAL_ID);
+        
         const { data, error } = await supabase
             .from('pos_customer_display')
             .select('*')
@@ -406,8 +396,29 @@ async function loadInitialData() {
             return;
         }
         
-        if (data && data.status !== 'PAID') {
-            updateUI(data);
+        if (data) {
+            console.log('📡 Initial data loaded:', data);
+            if (data.status !== 'PAID') {
+                updateUI(data);
+            }
+        } else {
+            console.log('📡 No initial data found, creating default record...');
+            // Create default record if not exists
+            const { error: insertError } = await supabase
+                .from('pos_customer_display')
+                .insert({
+                    id: TERMINAL_ID,
+                    amount: 0,
+                    status: 'PENDING',
+                    items: [],
+                    updated_at: new Date().toISOString()
+                });
+            
+            if (insertError) {
+                console.error('Error creating default record:', insertError);
+            } else {
+                console.log('✅ Default record created');
+            }
         }
     } catch (err) {
         console.error('Initial load error:', err);
@@ -415,8 +426,8 @@ async function loadInitialData() {
 }
 
 // Start the application
-function init() {
-    loadInitialData();
+async function init() {
+    await loadInitialData();
     initRealtimeSubscription();
 }
 
