@@ -1091,6 +1091,24 @@ function init() {
 }
 
 init();
+// =====================================================
+// AUTO-CLEAR CART AND DISPLAY WHEN TAB CLOSES OR LOGOUT
+// =====================================================
+
+// Function to clear everything (reuses existing clearCart)
+async function forceClearCart() {
+    console.log('🧹 Force clearing cart and display...');
+    
+    if (typeof clearCart === 'function') {
+        clearCart();  // This already calls updateCustomerDisplay() which resets the table
+        console.log('✅ Cart cleared, display reset');
+    }
+}
+
+// 1. When tab/window is closed
+window.addEventListener('beforeunload', () => {
+    forceClearCart();
+});
 </script>
 </body>
 </html>
