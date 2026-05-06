@@ -551,6 +551,8 @@ async function updateCustomerDisplay() {
     if (!window.supabaseClient || !isOnline) return;
     try {
         const { total } = calculateTotals();
+        const qrString = paymentMethod === 'QR Code' && total > 0 ? generateQRString(total) : '';
+        
         await window.supabaseClient
             .from('pos_customer_display')
             .upsert({
@@ -558,13 +560,15 @@ async function updateCustomerDisplay() {
                 amount: total,
                 status: 'PENDING',
                 items: cart,
+                payment_method: paymentMethod,
+                qr_string: qrString,  // Change from 'qr_code' to 'qr_string'
                 updated_at: new Date().toISOString()
             });
     } catch (err) {
         console.error('Display error:', err);
     }
 }
-
+    
 async function markCustomerDisplayPaid() {
     if (!window.supabaseClient || !isOnline) return;
     try {
@@ -573,13 +577,14 @@ async function markCustomerDisplayPaid() {
             .upsert({
                 id: CUSTOMER_DISPLAY_ID,
                 status: 'PAID',
+                qr_string: '',  // Clear QR code when paid
                 updated_at: new Date().toISOString()
             });
     } catch (err) {
         console.error('Mark paid error:', err);
     }
 }
-
+    
 function calculateTotals() {
     const total = cart.reduce((sum, item) => sum + (item.retail_price * item.qty), 0) - currentDiscount;
     const tax = total * (window.TAX_RATE / (100 + window.TAX_RATE));
