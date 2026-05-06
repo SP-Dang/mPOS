@@ -457,6 +457,7 @@ async function updateCustomerDisplay() {
                 qr_string: qrString,
                 status: 'PENDING',
                 items: cart,
+                customer_phone: selectedCustomer?.phone || null,  // ← Add this line
                 updated_at: new Date().toISOString()
             });
         console.log('📺 Customer display updated');
