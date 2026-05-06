@@ -851,6 +851,7 @@ async function showPreview(file) {
 }
 
 // Process bulk update
+// Process bulk upload - CREATE NEW + UPDATE EXISTING
 async function processBulkUpload() {
     const fileInput = document.getElementById('bulk-file');
     const file = fileInput.files[0];
@@ -875,96 +876,144 @@ async function processBulkUpload() {
         return;
     }
     
-    if (!confirm(`ຢືນຢັນການອັບເດດ ${uploadedData.length} ລາຍການ?`)) return;
+    if (!confirm(`ຢືນຢັນການນຳເຂົ້າ ${uploadedData.length} ລາຍການ?`)) return;
     
     const btn = document.querySelector('#bulk-upload-modal .save-btn');
     btn.disabled = true;
     btn.innerHTML = '⏳ ກຳລັງດຳເນີນການ...';
     
-    let successCount = 0;
+    let createdCount = 0;
+    let updatedCount = 0;
     let errorCount = 0;
     let errors = [];
     
     try {
         for (const item of uploadedData) {
-            const barcode = item.barcode || item.Barcode;
+            // Get values (support multiple column name variations)
+            const barcode = (item.barcode || item.Barcode || item.BARCODE || '').toString().trim();
+            const name = item.name || item.Name || item.product_name || '';
+            const price = parseFloat(item.retail_price || item.price || item.Price || 0);
+            const stockQty = parseInt(item.stock_qty || item.stock || item.quantity || item.Qty || 0);
+            const minStock = parseInt(item.min_stock || item.minStock || 5);
+            const category = item.category || item.Category || '';
+            const costPrice = parseFloat(item.cost_price || item.costPrice || 0);
             
+            // Validation
             if (!barcode) {
                 errorCount++;
                 errors.push({ barcode: 'ບໍ່ມີ', error: 'ບໍ່ມີບາໂຄດ' });
                 continue;
             }
             
-            // Check if product exists
-            const { data: existing, error: findError } = await window.supabaseClient
-                .from('pos_products')
-                .select('id, barcode, name, stock_qty, retail_price')
-                .eq('barcode', barcode)
-                .single();
-            
-            if (findError || !existing) {
+            if (!name) {
                 errorCount++;
-                errors.push({ barcode: barcode, error: 'ບໍ່ພົບສິນຄ້າ' });
+                errors.push({ barcode: barcode, error: 'ບໍ່ມີຊື່ສິນຄ້າ' });
                 continue;
             }
             
-            // Prepare update data
-            const updateData = {};
-            
-            if (updateType === 'stock' || updateType === 'both') {
-                const newStock = parseInt(item.stock_qty || item.stock || item.quantity);
-                if (!isNaN(newStock) && newStock !== existing.stock_qty) {
-                    updateData.stock_qty = newStock;
-                }
+            if (isNaN(price) || price <= 0) {
+                errorCount++;
+                errors.push({ barcode: barcode, error: 'ລາຄາບໍ່ຖືກຕ້ອງ' });
+                continue;
             }
             
-            if (updateType === 'price' || updateType === 'both') {
-                const newPrice = parseFloat(item.retail_price || item.price);
-                if (!isNaN(newPrice) && newPrice > 0 && newPrice !== existing.retail_price) {
-                    updateData.retail_price = newPrice;
-                }
-            }
+            // Check if product exists
+            const { data: existing, error: findError } = await window.supabaseClient
+                .from('pos_products')
+                .select('id, barcode, name, stock_qty, retail_price, min_stock, category, cost_price')
+                .eq('barcode', barcode)
+                .maybeSingle();
             
-            if (Object.keys(updateData).length > 0) {
-                updateData.last_updated = new Date().toISOString();
+            const productData = {
+                barcode: barcode,
+                name: name,
+                retail_price: price,
+                stock_qty: stockQty,
+                min_stock: minStock,
+                category: category,
+                cost_price: costPrice,
+                last_updated: new Date().toISOString()
+            };
+            
+            if (!existing) {
+                // CREATE new product
+                productData.created_at = new Date().toISOString();
                 
-                const { error: updateError } = await window.supabaseClient
+                const { error: createError } = await window.supabaseClient
                     .from('pos_products')
-                    .update(updateData)
-                    .eq('id', existing.id);
+                    .insert([productData]);
                 
-                if (updateError) {
+                if (createError) {
                     errorCount++;
-                    errors.push({ barcode: barcode, error: updateError.message });
+                    errors.push({ barcode: barcode, error: 'ສ້າງບໍ່ສຳເລັດ: ' + createError.message });
                 } else {
-                    successCount++;
+                    createdCount++;
                 }
             } else {
-                successCount++; // No change needed
+                // UPDATE existing product
+                const updateData = {};
+                
+                if (updateType === 'stock' || updateType === 'both') {
+                    if (stockQty !== existing.stock_qty) {
+                        updateData.stock_qty = stockQty;
+                    }
+                }
+                
+                if (updateType === 'price' || updateType === 'both') {
+                    if (price !== existing.retail_price) {
+                        updateData.retail_price = price;
+                    }
+                }
+                
+                // Always update these if changed
+                if (name !== existing.name) updateData.name = name;
+                if (minStock !== existing.min_stock) updateData.min_stock = minStock;
+                if (category !== existing.category) updateData.category = category;
+                if (costPrice !== existing.cost_price) updateData.cost_price = costPrice;
+                
+                if (Object.keys(updateData).length > 0) {
+                    updateData.last_updated = new Date().toISOString();
+                    
+                    const { error: updateError } = await window.supabaseClient
+                        .from('pos_products')
+                        .update(updateData)
+                        .eq('id', existing.id);
+                    
+                    if (updateError) {
+                        errorCount++;
+                        errors.push({ barcode: barcode, error: 'ອັບເດດບໍ່ສຳເລັດ: ' + updateError.message });
+                    } else {
+                        updatedCount++;
+                    }
+                } else {
+                    updatedCount++; // No change needed
+                }
             }
         }
         
         // Show result
-        let message = `ອັບເດດສຳເລັດ ${successCount} ລາຍການ`;
-        if (errorCount > 0) {
-            message += `, ຜິດພາດ ${errorCount} ລາຍການ`;
-            console.error('Errors:', errors);
-            
-            // Show detailed errors
-            if (errors.length > 0) {
-                let errorMsg = 'ລາຍການທີ່ຜິດພາດ:\n';
-                errors.slice(0, 10).forEach(e => {
-                    errorMsg += `- ${e.barcode}: ${e.error}\n`;
-                });
-                alert(errorMsg);
-            }
-        }
+        let message = `ນຳເຂົ້າສຳເລັດ!`;
+        if (createdCount > 0) message += ` ສ້າງໃໝ່ ${createdCount} ລາຍການ`;
+        if (updatedCount > 0) message += ` ອັບເດດ ${updatedCount} ລາຍການ`;
+        if (errorCount > 0) message += ` ຜິດພາດ ${errorCount} ລາຍການ`;
         
         showToast(message, errorCount > 0 ? 'warning' : 'success');
         
-        if (successCount > 0) {
+        if (createdCount > 0 || updatedCount > 0) {
             closeBulkUploadModal();
             loadProducts(); // Refresh the list
+        }
+        
+        // Show detailed errors if any
+        if (errors.length > 0) {
+            let errorMsg = 'ລາຍການທີ່ຜິດພາດ:\n';
+            errors.slice(0, 15).forEach(e => {
+                errorMsg += `- ${e.barcode}: ${e.error}\n`;
+            });
+            if (errors.length > 15) {
+                errorMsg += `... ແລະອີກ ${errors.length - 15} ລາຍການ`;
+            }
+            alert(errorMsg);
         }
         
     } catch (err) {
@@ -972,17 +1021,9 @@ async function processBulkUpload() {
         showToast('ເກີດຂໍ້ຜິດພາດ: ' + err.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '🚀 ເລີ່ມອັບເດດ';
+        btn.innerHTML = '🚀 ນຳເຂົ້າຂໍ້ມູນ';
     }
-}
-
-// Add file input change listener
-document.getElementById('bulk-file')?.addEventListener('change', function(e) {
-    if (this.files && this.files[0]) {
-        showPreview(this.files[0]);
-    }
-});
-    
+}    
 init();
 </script>
 </body>
