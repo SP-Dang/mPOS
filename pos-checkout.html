@@ -960,35 +960,42 @@ async function processSale() {
         const invoiceNumber = generateInvoiceNumber();
         
         if (paymentMethod === 'Cash') {
-            const defaultAmount = Math.ceil(finalTotal / 1000) * 1000;
-            const formattedDefault = defaultAmount.toLocaleString('lo-LA');
-            const received = prompt(`ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, formattedDefault);
-            
-            if (!received) {
-                btn.disabled = false;
-                btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-                return;
-            }
-            
-            const cashReceived = parseFloat(received.replace(/,/g, ''));
-            if (isNaN(cashReceived)) {
-                showToast('ກະລຸນາປ້ອນຈຳນວນເງິນ', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-                return;
-            }
-            
-            const change = cashReceived - finalTotal;
-            if (change < 0) {
-                showToast('ເງິນບໍ່ພໍ!', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
-                return;
-            }
-            if (change > 0) {
-                showToast(`ເງິນທອນ: ${formatLAK(change)}`, 'info');
-            }
-        }
+    const defaultAmount = Math.ceil(finalTotal / 1000) * 1000;
+    const formattedDefault = defaultAmount.toLocaleString('lo-LA');
+    const received = prompt(`ຍອດລວມ: ${formatLAK(finalTotal)}\nເງິນທີ່ໃຫ້ມາ:`, formattedDefault);
+    
+    if (!received) {
+        btn.disabled = false;
+        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+        return;
+    }
+    
+    // Remove commas and convert to number
+    const cashReceived = parseFloat(received.replace(/,/g, ''));
+    
+    if (isNaN(cashReceived)) {
+        showToast('ກະລຸນາປ້ອນຈຳນວນເງິນ', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+        return;
+    }
+    
+    // Calculate change
+    const change = cashReceived - finalTotal;
+    
+    // FIX: Check if customer paid enough
+    if (cashReceived < finalTotal) {
+        showToast(`ເງິນບໍ່ພຽງພໍ! ຕ້ອງການ ${formatLAK(finalTotal)}`, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '✅ ສຳເລັດການຂາຍ';
+        return;
+    }
+    
+    // Show change if any
+    if (change > 0) {
+        showToast(`ເງິນທອນ: ${formatLAK(change)}`, 'info');
+    }
+}
         
         for (const item of cart) {
             const { data: product } = await window.supabaseClient
