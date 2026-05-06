@@ -501,6 +501,7 @@ function openClosingModal() {
         return;
     }
     
+    // Display using correct formatting
     document.getElementById('modal-summary').innerHTML = `
         <div class="summary-row"><span>ຍອດລວມໃນລະບົບ:</span><b>${formatLAK(todayStats.total)}</b></div>
         <div class="summary-row"><span>ເງິນສົດໃນລະບົບ:</span>${formatLAK(todayStats.cash)}</div>
@@ -511,7 +512,7 @@ function openClosingModal() {
     document.getElementById('closing-modal').style.display = 'flex';
     updateVariance();
 }
-
+    
 function closeModal() {
     document.getElementById('closing-modal').style.display = 'none';
 }
@@ -538,30 +539,47 @@ async function submitClosing() {
     const user = getCurrentUser();
     const today = new Date().toISOString().split('T')[0];
     
-    const { error } = await window.supabaseClient
-        .from('pos_daily_reports')
-        .insert([{
-            report_date: today,
-            total_orders_count: todayStats.count,
-            system_total_amount: todayStats.total,
-            system_cash_amount: todayStats.cash,
-            system_transfer_amount: todayStats.transfer,
-            actual_cash_amount: actualCash,
-            actual_transfer_amount: actualTransfer,
-            variance: (actualCash + actualTransfer) - todayStats.total,
-            closed_by: user.name
-        }]);
+    // Validate inputs
+    if (isNaN(actualCash) || isNaN(actualTransfer)) {
+        showToast('ກະລຸນາປ້ອນຈຳນວນເງິນ', 'error');
+        return;
+    }
     
-    if (error) {
-        if (error.code === '23505') {
-            showToast('ມື້ນີ້ໄດ້ປິດຍອດໄປແລ້ວ', 'warning');
+    // Use EXACT column names from your table
+    const reportData = {
+        report_date: today,
+        total_orders: todayStats.count,
+        system_total: todayStats.total,
+        system_cash: todayStats.cash,
+        system_transfer: todayStats.transfer,
+        actual_cash: actualCash,        // ← NO '_amount' suffix
+        actual_transfer: actualTransfer, // ← NO '_amount' suffix
+        variance: (actualCash + actualTransfer) - todayStats.total,
+        closed_by: user.name || 'Admin'
+    };
+    
+    console.log('Submitting closing report:', reportData);
+    
+    try {
+        const { error } = await window.supabaseClient
+            .from('pos_daily_reports')
+            .insert([reportData]);
+        
+        if (error) {
+            console.error('Insert error:', error);
+            if (error.code === '23505') {
+                showToast('ມື້ນີ້ໄດ້ປິດຍອດໄປແລ້ວ', 'warning');
+            } else {
+                showToast('ເກີດຂໍ້ຜິດພາດ: ' + error.message, 'error');
+            }
         } else {
-            showToast('ເກີດຂໍ້ຜິດພາດ: ' + error.message, 'error');
+            showToast('✅ ບັນທຶກການປິດຍອດສຳເລັດ!', 'success');
+            closeModal();
+            loadDashboard();
         }
-    } else {
-        showToast('ບັນທຶກການປິດຍອດສຳເລັດ!', 'success');
-        closeModal();
-        loadDashboard();
+    } catch (err) {
+        console.error('Submit error:', err);
+        showToast('ເກີດຂໍ້ຜິດພາດ: ' + err.message, 'error');
     }
 }
 
