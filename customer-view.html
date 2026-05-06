@@ -175,7 +175,6 @@ const TERMINAL_ID = "main-terminal";
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentCustomer = null;
-let pollInterval = null;
 
 function formatCurrency(amount) {
     if (!amount || isNaN(amount)) return '₭0';
@@ -251,7 +250,6 @@ function showThankYou() {
     }, 8000);
 }
 
-// Check if data is stale (older than 5 minutes)
 function isDataStale(data) {
     if (!data || !data.updated_at) return true;
     const lastUpdate = new Date(data.updated_at);
@@ -260,7 +258,6 @@ function isDataStale(data) {
     return diffMinutes > 5 && data.status !== 'PAID' && data.amount > 0;
 }
 
-// Reset display to empty state
 async function resetDisplay() {
     try {
         await _supabase
@@ -328,12 +325,35 @@ async function loadInitialData() {
     }
 }
 
+// Start real-time subscription (listening to BOTH INSERT and UPDATE)
 async function startRealtimeSubscription() {
     console.log('🔄 Starting real-time subscription...');
     await loadInitialData();
     
     _supabase
         .channel('public:pos_customer_display')
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'pos_customer_display',
+            filter: `id=eq.${TERMINAL_ID}`
+        }, async (payload) => {
+            console.log('📡 INSERT received:', payload);
+            const data = payload.new;
+            
+            if (data.customer_phone) {
+                const customer = await fetchCustomerInfo(data.customer_phone);
+                if (customer) updateCustomerInfo(customer);
+            } else {
+                updateCustomerInfo(null);
+            }
+            
+            if (data.status === 'PAID') {
+                showThankYou();
+            } else {
+                updateUI(data);
+            }
+        })
         .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
@@ -358,10 +378,54 @@ async function startRealtimeSubscription() {
         })
         .subscribe((status) => {
             console.log('📡 Subscription status:', status);
+            if (status === 'SUBSCRIBED') {
+                console.log('✅ Real-time connected!');
+            }
         });
 }
 
-// Clean up old data periodically (every 30 seconds)
+// Polling fallback (in case real-time fails)
+let pollInterval = null;
+let lastDataHash = '';
+
+function startPolling() {
+    if (pollInterval) clearInterval(pollInterval);
+    
+    pollInterval = setInterval(async () => {
+        try {
+            const { data } = await _supabase
+                .from('pos_customer_display')
+                .select('*')
+                .eq('id', TERMINAL_ID)
+                .maybeSingle();
+            
+            if (data) {
+                const dataHash = JSON.stringify({ amount: data.amount, itemsLength: data.items?.length, status: data.status });
+                if (lastDataHash !== dataHash) {
+                    lastDataHash = dataHash;
+                    console.log('Polling update detected');
+                    
+                    if (data.customer_phone) {
+                        const customer = await fetchCustomerInfo(data.customer_phone);
+                        if (customer) updateCustomerInfo(customer);
+                    } else {
+                        updateCustomerInfo(null);
+                    }
+                    
+                    if (data.status === 'PAID') {
+                        showThankYou();
+                    } else {
+                        updateUI(data);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Poll error:', err);
+        }
+    }, 3000); // Poll every 3 seconds as fallback
+}
+
+// Periodic cleanup for stale data
 setInterval(async () => {
     const { data } = await _supabase
         .from('pos_customer_display')
@@ -375,6 +439,7 @@ setInterval(async () => {
     }
 }, 30000);
 
+// POS active check
 let posActiveCheckInterval = null;
 
 async function checkPOSActive() {
@@ -388,11 +453,10 @@ async function checkPOSActive() {
         if (data) {
             const lastUpdate = new Date(data.updated_at);
             const now = new Date();
-            const minutesSinceUpdate = (now - lastUpdate) / 1000 / 60;
+            const secondsSinceUpdate = (now - lastUpdate) / 1000;
             
-            // If no update for 2 minutes and cart not empty, reset
-            if (minutesSinceUpdate > 2 && data.amount > 0) {
-                console.log('POS inactive for 2 minutes, resetting display');
+            if (secondsSinceUpdate > 60 && data.amount > 0) {
+                console.log(`POS inactive for ${Math.round(secondsSinceUpdate)} seconds, resetting display`);
                 await resetDisplay();
             }
         }
@@ -401,11 +465,17 @@ async function checkPOSActive() {
     }
 }
 
-// Check every 30 seconds (faster response)
 posActiveCheckInterval = setInterval(checkPOSActive, 30000);
-    
-// Start
+
+// Start everything
 startRealtimeSubscription();
+startPolling();
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+    if (pollInterval) clearInterval(pollInterval);
+    if (posActiveCheckInterval) clearInterval(posActiveCheckInterval);
+});
 </script>
 </body>
 </html>
