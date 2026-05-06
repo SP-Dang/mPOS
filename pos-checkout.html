@@ -442,30 +442,14 @@ function generateQRString(amount) {
 }
 
 // Update customer display
-// Update customer display - WITH DEBUG LOGS
 async function updateCustomerDisplay() {
-    console.log('🔍 updateCustomerDisplay called');
-    console.log('🔍 supabaseClient:', window.supabaseClient ? 'exists' : 'NOT exists');
-    
-    if (!window.supabaseClient) {
-        console.error('❌ supabaseClient not available');
-        return;
-    }
+    if (!window.supabaseClient) return;
     
     try {
         const { total } = calculateTotals();
         const qrString = paymentMethod === 'QR Code' && total > 0 ? generateQRString(total) : '';
         
-        console.log('🔍 Updating display with:', {
-            id: CUSTOMER_DISPLAY_ID,
-            amount: total,
-            qr_string: qrString ? 'yes' : 'no',
-            status: 'PENDING',
-            itemsCount: cart.length,
-            customer_phone: selectedCustomer?.phone || null
-        });
-        
-        const { data, error } = await window.supabaseClient
+        await window.supabaseClient
             .from('pos_customer_display')
             .upsert({
                 id: CUSTOMER_DISPLAY_ID,
@@ -473,18 +457,11 @@ async function updateCustomerDisplay() {
                 qr_string: qrString,
                 status: 'PENDING',
                 items: cart,
-                customer_phone: selectedCustomer?.phone || null,
                 updated_at: new Date().toISOString()
-            })
-            .select();
-        
-        if (error) {
-            console.error('❌ Customer display error:', error);
-        } else {
-            console.log('✅ Customer display updated successfully:', data);
-        }
+            });
+        console.log('📺 Customer display updated');
     } catch (err) {
-        console.error('❌ Customer display exception:', err);
+        console.error('Customer display error:', err);
     }
 }
 
@@ -1114,16 +1091,6 @@ function init() {
 }
 
 init();
-// =====================================================
-// AUTO-CLEAR ON TAB CLOSE
-// =====================================================
-window.addEventListener('beforeunload', () => {
-    console.log('🧹 Clearing cart on tab close...');
-    if (typeof clearCart === 'function') {
-        clearCart();
-    }
-});
-
 </script>
 </body>
 </html>
