@@ -7,12 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Phetsarath&family=Plus+Jakarta+Sans:wght@400;700;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
             --primary: #10b981;
             --primary-dark: #059669;
@@ -22,7 +17,6 @@
             --text-light: #64748b;
             --lao: 'Phetsarath', sans-serif;
         }
-        
         body {
             margin: 0;
             background: var(--bg);
@@ -31,7 +25,6 @@
             height: 100vh;
             overflow: hidden;
         }
-        
         .order-details {
             flex: 1;
             padding: 40px;
@@ -39,19 +32,8 @@
             flex-direction: column;
             background: white;
         }
-        
-        .order-details h1 {
-            margin: 0;
-            font-size: 28px;
-            color: var(--text-dark);
-        }
-        
-        .item-list {
-            flex: 1;
-            overflow-y: auto;
-            margin-top: 20px;
-        }
-        
+        .order-details h1 { margin: 0; font-size: 28px; color: var(--text-dark); }
+        .item-list { flex: 1; overflow-y: auto; margin-top: 20px; }
         .item-row {
             display: flex;
             justify-content: space-between;
@@ -59,23 +41,12 @@
             border-bottom: 1px solid #f1f5f9;
             font-size: 18px;
         }
-        
-        .item-name {
-            font-weight: 500;
-        }
-        
-        .item-price {
-            font-weight: 700;
-            color: var(--primary-dark);
-        }
-        
         .waiting-box {
             text-align: center;
             padding: 50px;
             color: var(--text-light);
             font-size: 18px;
         }
-        
         .total-section {
             border-top: 2px solid #eee;
             padding-top: 20px;
@@ -83,19 +54,8 @@
             justify-content: space-between;
             align-items: center;
         }
-        
-        .total-label {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text-dark);
-        }
-        
-        .total-amount {
-            font-size: 36px;
-            font-weight: 800;
-            color: var(--primary-dark);
-        }
-        
+        .total-label { font-size: 24px; font-weight: 700; color: var(--text-dark); }
+        .total-amount { font-size: 36px; font-weight: 800; color: var(--primary-dark); }
         .payment-side {
             width: 450px;
             background: var(--dark-bg);
@@ -107,14 +67,7 @@
             padding: 40px;
             text-align: center;
         }
-        
-        #amount {
-            font-size: 48px;
-            font-weight: 800;
-            color: var(--primary);
-            margin-bottom: 20px;
-        }
-        
+        #amount { font-size: 48px; font-weight: 800; color: var(--primary); margin-bottom: 20px; }
         #qrcode-canvas {
             background: white;
             padding: 15px;
@@ -126,47 +79,15 @@
             justify-content: center;
             margin: 10px 0;
         }
-        
-        .payment-status {
-            margin-top: 20px;
-            font-size: 14px;
-            color: #94a3b8;
-        }
-        
+        .payment-status { margin-top: 20px; font-size: 14px; color: #94a3b8; }
         .thank-you {
             font-size: 32px;
             color: var(--primary);
             font-weight: 800;
             display: none;
         }
-        
-        .thank-you span {
-            font-size: 20px;
-            color: white;
-            display: block;
-            margin-top: 10px;
-        }
-        
-        .footer {
-            margin-top: 30px;
-            font-size: 11px;
-            color: #3aba5e;
-            opacity: 0.7;
-            text-align: center;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        
-        .item-row { animation: slideIn 0.3s ease; }
-        .thank-you { animation: fadeIn 0.5s ease; }
+        .thank-you span { font-size: 20px; color: white; display: block; margin-top: 10px; }
+        .footer { margin-top: 30px; font-size: 11px; color: #3aba5e; opacity: 0.7; text-align: center; }
     </style>
 </head>
 <body>
@@ -185,258 +106,115 @@
 <div class="payment-side">
     <div id="payment-content">
         <div id="amount">₭0</div>
-        <div id="qrcode-canvas">
-            <div style="color:#0f172a; font-weight: bold; font-size: 12px; text-align: center;">⏳ ກຳລັງລໍຖ້າ...</div>
-        </div>
+        <div id="qrcode-canvas"><div style="color:#0f172a;">⏳ ກຳລັງລໍຖ້າ...</div></div>
         <p class="payment-status" id="payment-status-text">ກະລຸນາລໍຖ້າການເລືອກວິທີຊຳລະ</p>
     </div>
-
     <div id="thank-you-msg" class="thank-you">
-        🙏 ຂໍຂອບໃຈ!
-        <span>ຊຳລະເງິນສຳເລັດແລ້ວ</span>
+        🙏 ຂໍຂອບໃຈ!<span>ຊຳລະເງິນສຳເລັດແລ້ວ</span>
     </div>
-
-    <div class="footer">
-        ⚡ LSM POS System<br>
-        ພັດທະນາໂດຍ: ສົມພອນ 02055348882
-    </div>
+    <div class="footer">⚡ LSM POS System<br>ພັດທະນາໂດຍ: ສົມພອນ 02055348882</div>
 </div>
 
 <script>
-// =====================================================
-// CUSTOMER DISPLAY - NEW PROJECT
-// =====================================================
-
-// Supabase configuration (NEW PROJECT)
+// Supabase configuration - using the global supabase from CDN
 const SUPABASE_URL = "https://rcjvgyetkukyaexzskmg.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjanZneWV0a3VreWFleHpza21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NzQ2MzUsImV4cCI6MjA5MzQ1MDYzNX0.aNTyK0l1sOYpZ0TdGrmjxIQbafnujQb1hP6dENX_104";
-
-// Terminal ID - must match pos-checkout.html
 const TERMINAL_ID = "main-terminal";
 
-// Create Supabase client
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Create client - use a different variable name to avoid conflict
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Format currency
 function formatCurrency(amount) {
     if (!amount || isNaN(amount)) return '₭0';
     return new Intl.NumberFormat('lo-LA').format(Math.round(amount)) + ' ₭';
 }
 
-// Escape HTML to prevent XSS
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Update UI with order data
 function updateUI(data) {
-    console.log('🔄 Updating UI with data:', data);
+    console.log('Updating UI:', data);
     
-    // Show payment content, hide thank you
-    const paymentContent = document.getElementById('payment-content');
-    const thankYouMsg = document.getElementById('thank-you-msg');
-    if (paymentContent) paymentContent.style.display = 'block';
-    if (thankYouMsg) thankYouMsg.style.display = 'none';
+    document.getElementById('payment-content').style.display = 'block';
+    document.getElementById('thank-you-msg').style.display = 'none';
     
-    // Update amount display
     const amountValue = Number(data.amount) || 0;
-    const amountEl = document.getElementById('amount');
-    const totalDisplay = document.getElementById('total-display');
-    if (amountEl) amountEl.innerText = formatCurrency(amountValue);
-    if (totalDisplay) totalDisplay.innerText = formatCurrency(amountValue);
+    document.getElementById('amount').innerText = formatCurrency(amountValue);
+    document.getElementById('total-display').innerText = formatCurrency(amountValue);
     
-    // Update items list
     const listContainer = document.getElementById('item-list');
-    if (listContainer) {
-        if (data.items && data.items.length > 0) {
-            listContainer.innerHTML = data.items.map(item => `
-                <div class="item-row">
-                    <span class="item-name">${escapeHtml(item.name)} x ${item.qty}</span>
-                    <span class="item-price">${formatCurrency(item.retail_price * item.qty)}</span>
-                </div>
-            `).join('');
-        } else {
-            listContainer.innerHTML = '<div class="waiting-box">🛍️ ກຳລັງເພີ່ມສິນຄ້າ...</div>';
-        }
+    if (data.items && data.items.length > 0) {
+        listContainer.innerHTML = data.items.map(item => `
+            <div class="item-row">
+                <span>${item.name} x ${item.qty}</span>
+                <span>${formatCurrency(item.retail_price * item.qty)}</span>
+            </div>
+        `).join('');
+    } else {
+        listContainer.innerHTML = '<div class="waiting-box">🛍️ ກຳລັງເພີ່ມສິນຄ້າ...</div>';
     }
     
-    // Handle QR code
     const qrContainer = document.getElementById("qrcode-canvas");
     const statusText = document.getElementById('payment-status-text');
+    qrContainer.innerHTML = "";
     
-    if (qrContainer) {
-        qrContainer.innerHTML = "";
-        
-        if (data.qr_string && data.qr_string.length > 10) {
-            // Generate QR code for payment
-            try {
-                new QRCode(qrContainer, { 
-                    text: data.qr_string, 
-                    width: 200, 
-                    height: 200 
-                });
-                if (statusText) {
-                    statusText.innerText = "📱 ກະລຸນາສະແກນ QR ເພື່ອຊຳລະເງິນ";
-                    statusText.style.color = "#94a3b8";
-                }
-            } catch (e) {
-                console.error('QR generation error:', e);
-                qrContainer.innerHTML = '<div style="color:#0f172a; font-weight: bold;">⚠️ QR Error</div>';
-            }
-        } else if (amountValue > 0) {
-            // Cash payment mode
-            qrContainer.innerHTML = '<div style="font-size: 70px;">💵</div><div style="color:#0f172a; font-weight: bold;">ເງິນສົດ</div>';
-            if (statusText) {
-                statusText.innerText = "💵 ກະລຸນາຊຳລະເງິນສົດທີ່ເຄົາເຕີ";
-                statusText.style.color = "#10b981";
-            }
-        } else {
-            qrContainer.innerHTML = '<div style="color:#0f172a; font-weight: bold; font-size: 14px;">⏳ ກຳລັງລໍຖ້າ</div>';
-            if (statusText) {
-                statusText.innerText = "ກະລຸນາລໍຖ້າການເລືອກວິທີຊຳລະ";
-                statusText.style.color = "#94a3b8";
-            }
-        }
+    if (data.qr_string && data.qr_string.length > 10) {
+        new QRCode(qrContainer, { text: data.qr_string, width: 200, height: 200 });
+        statusText.innerText = "📱 ສະແກນ QR ເພື່ອຊຳລະເງິນ";
+    } else if (amountValue > 0) {
+        qrContainer.innerHTML = '<div style="font-size: 70px;">💵</div>';
+        statusText.innerText = "💵 ຊຳລະເງິນສົດທີ່ເຄົາເຕີ";
+    } else {
+        qrContainer.innerHTML = '<div style="color:#0f172a;">⏳ ກຳລັງລໍຖ້າ...</div>';
+        statusText.innerText = "ກະລຸນາລໍຖ້າ...";
     }
 }
 
-// Show thank you message when payment is completed
 function showThankYou() {
-    const paymentContent = document.getElementById('payment-content');
-    const thankYouMsg = document.getElementById('thank-you-msg');
-    
-    if (paymentContent) paymentContent.style.display = 'none';
-    if (thankYouMsg) thankYouMsg.style.display = 'block';
-    
-    // Auto reset after 8 seconds
-    setTimeout(resetUI, 8000);
+    document.getElementById('payment-content').style.display = 'none';
+    document.getElementById('thank-you-msg').style.display = 'block';
+    setTimeout(() => {
+        document.getElementById('payment-content').style.display = 'block';
+        document.getElementById('thank-you-msg').style.display = 'none';
+    }, 8000);
 }
 
-// Reset UI to initial state
-function resetUI() {
-    const paymentContent = document.getElementById('payment-content');
-    const thankYouMsg = document.getElementById('thank-you-msg');
-    const amountEl = document.getElementById('amount');
-    const totalDisplay = document.getElementById('total-display');
-    const itemList = document.getElementById('item-list');
-    const qrContainer = document.getElementById('qrcode-canvas');
-    const statusText = document.getElementById('payment-status-text');
-    
-    if (paymentContent) paymentContent.style.display = 'block';
-    if (thankYouMsg) thankYouMsg.style.display = 'none';
-    if (amountEl) amountEl.innerText = '₭0';
-    if (totalDisplay) totalDisplay.innerText = '₭0';
-    if (itemList) {
-        itemList.innerHTML = '<div class="waiting-box">🛍️ ລໍຖ້າລາຍການສິນຄ້າ...</div>';
-    }
-    if (qrContainer) {
-        qrContainer.innerHTML = '<div style="color:#0f172a; font-weight: bold; font-size: 14px;">⏳ ກຳລັງລໍຖ້າ</div>';
-    }
-    if (statusText) {
-        statusText.innerText = "ກະລຸນາລໍຖ້າການເລືອກວິທີຊຳລະ";
-        statusText.style.color = "#94a3b8";
-    }
-}
-
-// Initialize real-time subscription
-function initRealtimeSubscription() {
-    console.log('🔄 Initializing customer display...');
-    console.log('📡 Connecting to terminal:', TERMINAL_ID);
-    
-    // Subscribe to changes on pos_customer_display table
-    const subscription = supabase
-        .channel('customer-display-channel')
-        .on(
-            'postgres_changes',
-            {
-                event: '*',
-                schema: 'public',
-                table: 'pos_customer_display',
-                filter: `id=eq.${TERMINAL_ID}`
-            },
-            (payload) => {
-                console.log('📡 Received update:', payload);
-                
-                const data = payload.new;
-                if (!data) return;
-                
-                if (data.status === 'PAID') {
-                    showThankYou();
-                } else {
-                    updateUI(data);
-                }
-            }
-        )
-        .subscribe((status) => {
-            console.log('📡 Subscription status:', status);
-            if (status === 'SUBSCRIBED') {
-                console.log('✅ Connected to customer display channel');
-            }
-        });
-    
-    return subscription;
-}
-
-// Load initial data on page load
 async function loadInitialData() {
     try {
-        console.log('📡 Loading initial data for terminal:', TERMINAL_ID);
-        
-        const { data, error } = await supabase
+        const { data } = await _supabase
             .from('pos_customer_display')
             .select('*')
             .eq('id', TERMINAL_ID)
             .maybeSingle();
         
-        if (error) {
-            console.error('Error loading initial data:', error);
-            return;
-        }
-        
-        if (data) {
-            console.log('📡 Initial data loaded:', data);
-            if (data.status !== 'PAID') {
-                updateUI(data);
-            }
-        } else {
-            console.log('📡 No initial data found, creating default record...');
-            // Create default record if not exists
-            const { error: insertError } = await supabase
-                .from('pos_customer_display')
-                .insert({
-                    id: TERMINAL_ID,
-                    amount: 0,
-                    status: 'PENDING',
-                    items: [],
-                    updated_at: new Date().toISOString()
-                });
-            
-            if (insertError) {
-                console.error('Error creating default record:', insertError);
-            } else {
-                console.log('✅ Default record created');
-            }
+        if (data && data.status !== 'PAID') {
+            updateUI(data);
         }
     } catch (err) {
-        console.error('Initial load error:', err);
+        console.error('Load error:', err);
     }
 }
 
-// Start the application
-async function init() {
-    await loadInitialData();
-    initRealtimeSubscription();
-}
+// Real-time subscription - using _supabase
+_supabase
+    .channel('customer-display-channel')
+    .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'pos_customer_display',
+        filter: `id=eq.${TERMINAL_ID}`
+    }, (payload) => {
+        console.log('Real-time update:', payload);
+        const data = payload.new;
+        if (data?.status === 'PAID') {
+            showThankYou();
+        } else if (data) {
+            updateUI(data);
+        }
+    })
+    .subscribe((status) => {
+        console.log('Subscription status:', status);
+    });
 
-// Start when page is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    init();
-}
+// Start
+loadInitialData();
 </script>
 </body>
 </html>
