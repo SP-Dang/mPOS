@@ -5,13 +5,12 @@
     <title>LSM POS | ໜ້າຈໍສະແດງລູກຄ້າ</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Phetsarath&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Phetsarath&family=Plus+Jakarta+Sans:wght@400;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
             --primary: #10b981;
             --primary-dark: #059669;
-            --primary-light: #d1fae5;
             --bg: #f1f5f9;
             --dark-bg: #0f172a;
             --text-dark: #1e293b;
@@ -33,122 +32,71 @@
             flex-direction: column;
             background: white;
         }
-        .welcome-section {
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--primary-light);
-        }
-        .welcome-greeting {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--primary-dark);
-            margin-bottom: 5px;
-        }
-        .welcome-greeting span { font-size: 28px; }
-        .customer-name {
-            font-size: 16px;
-            color: var(--text-dark);
-            margin-top: 5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .customer-name .label { color: var(--text-light); font-weight: 500; }
-        .customer-name .name { font-weight: 700; color: var(--primary-dark); font-size: 18px; }
-        .customer-name .points-badge {
-            background: var(--primary-light);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--primary-dark);
-        }
-        .shop-name { font-size: 12px; color: var(--text-light); margin-top: 5px; }
-        .order-title { margin: 0; font-size: 24px; color: var(--text-dark); margin-bottom: 15px; }
-        .item-list { flex: 1; overflow-y: auto; margin-top: 10px; }
+        .order-details h1 { margin: 0; font-size: 28px; color: var(--text-dark); }
+        .item-list { flex: 1; overflow-y: auto; margin-top: 20px; }
         .item-row {
             display: flex;
             justify-content: space-between;
-            padding: 12px 0;
+            padding: 15px 0;
             border-bottom: 1px solid #f1f5f9;
-            font-size: 16px;
+            font-size: 18px;
         }
         .waiting-box {
             text-align: center;
-            padding: 40px;
+            padding: 50px;
             color: var(--text-light);
-            font-size: 16px;
+            font-size: 18px;
         }
         .total-section {
             border-top: 2px solid #eee;
-            padding-top: 15px;
+            padding-top: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .total-label { font-size: 20px; font-weight: 700; color: var(--text-dark); }
-        .total-amount { font-size: 28px; font-weight: 800; color: var(--primary-dark); }
+        .total-label { font-size: 24px; font-weight: 700; color: var(--text-dark); }
+        .total-amount { font-size: 36px; font-weight: 800; color: var(--primary-dark); }
         .payment-side {
-            width: 400px;
+            width: 450px;
             background: var(--dark-bg);
             color: white;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 30px;
+            padding: 40px;
             text-align: center;
         }
-        #amount { font-size: 40px; font-weight: 800; color: var(--primary); margin-bottom: 15px; }
+        #amount { font-size: 48px; font-weight: 800; color: var(--primary); margin-bottom: 20px; }
         #qrcode-canvas {
             background: white;
             padding: 15px;
             border-radius: 20px;
-            min-height: 200px;
-            width: 200px;
+            min-height: 230px;
+            width: 230px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 10px 0;
         }
-        .payment-status { margin-top: 15px; font-size: 13px; color: #94a3b8; }
+        .payment-status { margin-top: 20px; font-size: 14px; color: #94a3b8; }
         .thank-you {
-            font-size: 28px;
+            font-size: 32px;
             color: var(--primary);
             font-weight: 800;
             display: none;
         }
-        .thank-you span { font-size: 18px; color: white; display: block; margin-top: 8px; }
-        .footer { margin-top: 20px; font-size: 10px; color: #3aba5e; opacity: 0.7; text-align: center; }
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        .item-row { animation: slideIn 0.3s ease; }
+        .thank-you span { font-size: 20px; color: white; display: block; margin-top: 10px; }
+        .footer { margin-top: 30px; font-size: 11px; color: #3aba5e; opacity: 0.7; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="order-details">
-    <div class="welcome-section">
-        <div class="welcome-greeting">
-            <span>🙏</span> ສະບາຍດີ ຍິນດີຕ້ອນຮັບສູ່ LSM RETAIL
-        </div>
-        <div class="customer-name" id="customer-info-display">
-            <span class="label">👤 ລູກຄ້າ:</span>
-            <span class="name" id="customer-name-display">-</span>
-            <span class="points-badge" id="customer-points-display">⭐ 0 ຄະແນນ</span>
-        </div>
-        <div class="shop-name">📍 ບ້ານ ດົງໂດກ, ເມືອງ ສີໂຄດຕະບອງ, ນະຄອນຫຼວງວຽງຈັນ | ໂທ: 02055348882</div>
-    </div>
-    
-    <div class="order-title">🛍️ ລາຍການສິນຄ້າຂອງທ່ານ</div>
-    
+    <h1>🛍️ ລາຍການສິນຄ້າຂອງທ່ານ</h1>
     <div class="item-list" id="item-list">
         <div class="waiting-box">⏳ ລໍຖ້າລາຍການສິນຄ້າ...</div>
     </div>
-    
     <div class="total-section">
         <span class="total-label">ຍອດລວມທັງໝົດ:</span>
         <span class="total-amount" id="total-display">₭0</span>
@@ -159,7 +107,7 @@
     <div id="payment-content">
         <div id="amount">₭0</div>
         <div id="qrcode-canvas"><div style="color:#0f172a;">⏳ ກຳລັງລໍຖ້າ...</div></div>
-        <p class="payment-status" id="payment-status-text">ກະລຸນາລໍຖ້າ...</p>
+        <p class="payment-status" id="payment-status-text">ກະລຸນາລໍຖ້າການເລືອກວິທີຊຳລະ</p>
     </div>
     <div id="thank-you-msg" class="thank-you">
         🙏 ຂໍຂອບໃຈ!<span>ຊຳລະເງິນສຳເລັດແລ້ວ</span>
@@ -174,32 +122,14 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const TERMINAL_ID = "main-terminal";
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-let currentCustomer = null;
 
 function formatCurrency(amount) {
     if (!amount || isNaN(amount)) return '₭0';
     return new Intl.NumberFormat('lo-LA').format(Math.round(amount)) + ' ₭';
 }
 
-function updateCustomerInfo(customer) {
-    const customerNameEl = document.getElementById('customer-name-display');
-    const customerPointsEl = document.getElementById('customer-points-display');
-    
-    if (customer && customer.name) {
-        currentCustomer = customer;
-        if (customerNameEl) customerNameEl.innerHTML = customer.name;
-        if (customerPointsEl) {
-            customerPointsEl.innerHTML = `⭐ ${customer.points || 0} ຄະແນນ`;
-            customerPointsEl.style.display = 'inline-block';
-        }
-    } else {
-        if (customerNameEl) customerNameEl.innerHTML = 'ທ່ານ (ບໍ່ໄດ້ເປັນສະມາຊິກ)';
-        if (customerPointsEl) customerPointsEl.style.display = 'none';
-    }
-}
-
 function updateUI(data) {
-    console.log('🔄 Updating UI with data:', data);
+    console.log('Updating UI:', data);
     
     document.getElementById('payment-content').style.display = 'block';
     document.getElementById('thank-you-msg').style.display = 'none';
@@ -226,13 +156,13 @@ function updateUI(data) {
     
     if (data.qr_string && data.qr_string.length > 10) {
         try {
-            new QRCode(qrContainer, { text: data.qr_string, width: 180, height: 180 });
+            new QRCode(qrContainer, { text: data.qr_string, width: 200, height: 200 });
             statusText.innerText = "📱 ສະແກນ QR ເພື່ອຊຳລະເງິນ";
         } catch(e) {
             console.error('QR Error:', e);
         }
     } else if (amountValue > 0) {
-        qrContainer.innerHTML = '<div style="font-size: 60px;">💵</div>';
+        qrContainer.innerHTML = '<div style="font-size: 70px;">💵</div>';
         statusText.innerText = "💵 ຊຳລະເງິນສົດທີ່ເຄົາເຕີ";
     } else {
         qrContainer.innerHTML = '<div style="color:#0f172a;">⏳ ກຳລັງລໍຖ້າ...</div>';
@@ -246,125 +176,68 @@ function showThankYou() {
     setTimeout(() => {
         document.getElementById('payment-content').style.display = 'block';
         document.getElementById('thank-you-msg').style.display = 'none';
-        updateCustomerInfo(null);
     }, 8000);
-}
-
-// ONLY reset when data is VERY old (30 minutes)
-function isDataVeryOld(data) {
-    if (!data || !data.updated_at) return false;
-    const lastUpdate = new Date(data.updated_at);
-    const now = new Date();
-    const diffMinutes = (now - lastUpdate) / 1000 / 60;
-    // Only reset if more than 30 minutes old (not 5 minutes)
-    return diffMinutes > 30 && data.amount === 0;
-}
-
-// Reset display - ONLY when explicitly needed
-async function resetDisplay() {
-    // Don't auto-reset aggressively
-    console.log('🔄 resetDisplay called - checking if needed...');
-    
-    // Only reset if current display shows cart but we want to clear
-    // This should only be called from external actions, not automatically
-}
-
-async function fetchCustomerInfo(phone) {
-    if (!phone) return null;
-    try {
-        const { data } = await _supabase
-            .from('pos_customers')
-            .select('name, phone, points')
-            .eq('phone', phone)
-            .maybeSingle();
-        return data;
-    } catch (err) {
-        return null;
-    }
-}
-
-async function loadInitialData() {
-    try {
-        const { data } = await _supabase
-            .from('pos_customer_display')
-            .select('*')
-            .eq('id', TERMINAL_ID)
-            .maybeSingle();
-        
-        if (data && data.status !== 'PAID') {
-            if (data.customer_phone) {
-                const customer = await fetchCustomerInfo(data.customer_phone);
-                if (customer) updateCustomerInfo(customer);
-            }
-            if (data.items && data.items.length > 0) {
-                updateUI(data);
-            }
-        }
-    } catch (err) {
-        console.error('Load error:', err);
-    }
 }
 
 // Start real-time subscription
 async function startRealtimeSubscription() {
-    console.log('🔄 Starting real-time subscription...');
-    await loadInitialData();
+    console.log('Starting real-time subscription...');
     
-    _supabase
+    // First, get initial data
+    const { data: initialData } = await _supabase
+        .from('pos_customer_display')
+        .select('*')
+        .eq('id', TERMINAL_ID)
+        .maybeSingle();
+    
+    if (initialData && initialData.status !== 'PAID') {
+        updateUI(initialData);
+    }
+    
+    // Subscribe to changes
+    const channel = _supabase
         .channel('public:pos_customer_display')
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'pos_customer_display',
-            filter: `id=eq.${TERMINAL_ID}`
-        }, async (payload) => {
-            console.log('📡 INSERT received:', payload);
-            const data = payload.new;
-            
-            if (data.customer_phone) {
-                const customer = await fetchCustomerInfo(data.customer_phone);
-                if (customer) updateCustomerInfo(customer);
-            }
-            
-            if (data.status === 'PAID') {
-                showThankYou();
-            } else if (data.items && data.items.length > 0) {
-                updateUI(data);
-            }
-        })
         .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
             table: 'pos_customer_display',
             filter: `id=eq.${TERMINAL_ID}`
-        }, async (payload) => {
-            console.log('📡 UPDATE received:', payload);
+        }, (payload) => {
+            console.log('UPDATE received:', payload);
             const data = payload.new;
-            
-            if (data.customer_phone) {
-                const customer = await fetchCustomerInfo(data.customer_phone);
-                if (customer) updateCustomerInfo(customer);
-            }
-            
             if (data.status === 'PAID') {
                 showThankYou();
             } else {
                 updateUI(data);
             }
         })
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'pos_customer_display',
+            filter: `id=eq.${TERMINAL_ID}`
+        }, (payload) => {
+            console.log('INSERT received:', payload);
+            const data = payload.new;
+            updateUI(data);
+        })
         .subscribe((status) => {
-            console.log('📡 Subscription status:', status);
+            console.log('Subscription status:', status);
             if (status === 'SUBSCRIBED') {
-                console.log('✅ Real-time connected! Waiting for POS data...');
+                console.log('✅ Real-time connected!');
             }
         });
+    
+    return channel;
 }
 
-// Polling fallback (every 2 seconds)
-let lastDataHash = '';
+// Also poll as fallback (every 2 seconds)
+let pollInterval = null;
 
 function startPolling() {
-    setInterval(async () => {
+    if (pollInterval) clearInterval(pollInterval);
+    
+    pollInterval = setInterval(async () => {
         try {
             const { data } = await _supabase
                 .from('pos_customer_display')
@@ -372,23 +245,14 @@ function startPolling() {
                 .eq('id', TERMINAL_ID)
                 .maybeSingle();
             
-            if (data && data.items && data.items.length > 0) {
-                const dataHash = JSON.stringify({ amount: data.amount, itemsLength: data.items?.length });
-                if (lastDataHash !== dataHash) {
-                    lastDataHash = dataHash;
-                    console.log('📡 Polling update detected');
-                    
-                    if (data.customer_phone) {
-                        const customer = await fetchCustomerInfo(data.customer_phone);
-                        if (customer) updateCustomerInfo(customer);
-                    }
-                    
-                    if (data.status === 'PAID') {
-                        showThankYou();
-                    } else {
-                        updateUI(data);
-                    }
+            if (data && data.status !== 'PAID') {
+                const currentAmount = document.getElementById('amount').innerText;
+                const newAmount = formatCurrency(data.amount);
+                if (currentAmount !== newAmount) {
+                    updateUI(data);
                 }
+            } else if (data && data.status === 'PAID') {
+                showThankYou();
             }
         } catch (err) {
             console.error('Poll error:', err);
@@ -396,11 +260,13 @@ function startPolling() {
     }, 2000);
 }
 
-// Start everything (NO aggressive auto-reset)
-startRealtimeSubscription();
-startPolling();
+// Start everything
+async function init() {
+    await startRealtimeSubscription();
+    startPolling();
+}
 
-console.log('✅ Customer Display Ready - Waiting for POS data...');
+init();
 </script>
 </body>
 </html>
