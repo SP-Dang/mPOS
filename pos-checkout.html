@@ -320,7 +320,7 @@
         
         <div class="hold-panel" id="hold-panel">
             <div class="hold-header">
-                <h3>📋 ບິນທີ່ຖືໄວ້ (Hold Bills)</h3>
+                <h3>📋 ບິນທີ່ພັກໄວ້ (Hold Bills)</h3>
                 <button onclick="toggleHoldPanel()">✕</button>
             </div>
             <div class="hold-bills" id="hold-bills-list"></div>
@@ -360,7 +360,7 @@
         </div>
         
         <div class="action-buttons">
-            <button class="btn-hold" onclick="holdBill()">📌 ຖືບິນ (Hold)</button>
+            <button class="btn-hold" onclick="holdBill()">📌 ພັກອໍເດິ (Hold)</button>
             <button class="btn-clear" onclick="clearCart()">🗑️ ລຶບທັງໝົດ</button>
         </div>
         <button class="btn-complete" onclick="processSale()">✅ ສຳເລັດການຂາຍ</button>
@@ -686,6 +686,7 @@ function clearCart() {
         drawCart();
         showToast('ລຶບສຳເລັດ', 'info');
     }
+    document.getElementById('barcode-input').focus();
 }
 
 // =====================================================
@@ -751,7 +752,8 @@ function holdBill() {
     document.getElementById('customer-phone').value = '';
     document.getElementById('customer-info').style.display = 'none';
     drawCart();
-    showToast(`ຖືບິນ "${name}"`, 'success');
+    showToast(`ພັກອໍເດິ "${name}"`, 'success');
+    document.getElementById('barcode-input').focus();
 }
 
 function loadHoldBill(index) {
@@ -770,6 +772,7 @@ function loadHoldBill(index) {
     holdBills.splice(index, 1);
     saveHoldBills();
     showToast(`ໂຫຼດບິນ "${bill.name}"`, 'success');
+    document.getElementById('barcode-input').focus();
 }
 
 function removeHoldBill(index) {
@@ -778,6 +781,7 @@ function removeHoldBill(index) {
         saveHoldBills();
         showToast('ລຶບສຳເລັດ', 'success');
     }
+    document.getElementById('barcode-input').focus();
 }
 
 function updatePaymentMethodUI() {
@@ -900,6 +904,7 @@ function setPaymentMethod(method, btn) {
     document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     updateCustomerDisplay();
+    document.getElementById('barcode-input').focus(); 
 }
 
 async function applyPoints() {
@@ -922,6 +927,7 @@ async function applyPoints() {
         showToast(`ໃຊ້ ${appliedPoints} ຄະແນນ, ຫຼຸດ ${formatLAK(currentDiscount)}`, 'success');
         updateCustomerDisplay();
     }
+    document.getElementById('barcode-input').focus();
 }
 
 // =====================================================
