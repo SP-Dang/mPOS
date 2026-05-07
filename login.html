@@ -138,7 +138,7 @@
             
             <div class="input-group">
                 <label>🔒 ລະຫັດ PIN (4 ຕົວເລກ)</label>
-                <input type="password" id="pin-input" class="pin-input" maxlength="6" inputmode="numeric" placeholder="••••">
+                <input type="password" id="pin-input" class="pin-input" maxlength="6" inputmode="numeric" placeholder="••••••">
             </div>
             
             <button class="btn-login" onclick="handleLogin()">🚀 ເຂົ້າສູ່ລະບົບ</button>
@@ -171,11 +171,11 @@
                 return;
             }
             
-            if (!pin || pin.length !== 4) {
-                messageDiv.innerHTML = '⚠️ ກະລຸນາປ້ອນ PIN 4 ຕົວເລກ';
-                messageDiv.className = 'error-message';
-                return;
-            }
+            if (!pin || pin.length < 4 || pin.length > 6) {
+            messageDiv.innerHTML = '⚠️ ກະລຸນາປ້ອນ PIN 4-6 ຕົວເລກ';
+            messageDiv.className = 'error-message';
+            return;
+}
             
             btn.disabled = true;
             btn.innerHTML = '⏳ ກຳລັງກວດສອບ...';
