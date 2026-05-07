@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mPOS | ຄຸ້ມຄອງຄ່າໃຊ້ຈ່າຍ</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --sidebar: #0f172a;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --lao: 'Phetsarath', sans-serif;
+        }
+        body {
+            margin: 0;
+            display: flex;
+            background: var(--bg);
+            font-family: 'Plus Jakarta Sans', var(--lao);
+            height: 100vh;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar);
+            color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        .logo {
+            padding: 24px 20px;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--primary);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .nav-menu { flex: 1; padding: 20px; }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: #94a3b8;
+            text-decoration: none;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+        .nav-item.active { background: var(--primary); color: white; }
+        .admin-only { display: flex; }
+        .user-info { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .user-name { font-weight: 600; margin-bottom: 10px; font-size: 13px; }
+        .logout-btn {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: none;
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            text-align: left;
+        }
+        .main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h1 { font-size: 24px; color: var(--text); }
+        .btn-primary, .btn-secondary, .btn-danger {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: var(--info); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+        }
+        .stat-card .label { font-size: 13px; color: var(--text-light); margin-bottom: 8px; }
+        .stat-card .value { font-size: 28px; font-weight: 800; color: var(--text); }
+        
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filter-bar select, .filter-bar input {
+            padding: 10px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            outline: none;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        .expense-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .expense-table th, .expense-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .expense-table th {
+            background: #f8fafc;
+            font-weight: 700;
+        }
+        .delete-expense {
+            background: #fee2e2;
+            color: var(--danger);
+            border: none;
+            padding: 5px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 25px;
+            width: 500px;
+            max-width: 90%;
+        }
+        .modal-content input, .modal-content select, .modal-content textarea {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            outline: none;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .toast {
+            position: fixed; bottom: 20px; right: 20px; padding: 12px 20px;
+            border-radius: 12px; color: white; font-weight: bold; z-index: 10000;
+            animation: slideIn 0.3s ease;
+        }
+        .toast-success { background: #10b981; }
+        .toast-error { background: #ef4444; }
+        .toast-warning { background: #f59e0b; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="sidebar">
+    <div class="logo"><span>⚡</span> mPOS</div>
+    <div class="nav-menu">
+        <a href="index.html" class="nav-item admin-only">📊 Dashboard</a>
+        <a href="pos-checkout.html" class="nav-item">🛒 ຂາຍສິນຄ້າ</a>
+        <a href="pos-inventory.html" class="nav-item admin-only">📦 ຄັງສິນຄ້າ</a>
+        <a href="pos-purchase.html" class="nav-item admin-only">📋 ສັ່ງຊື້ສິນຄ້າ</a>
+        <a href="pos-expenses.html" class="nav-item active admin-only">💰 ຄ່າໃຊ້ຈ່າຍ</a>
+        <a href="pos-coupons.html" class="nav-item admin-only">🏷️ ຄູປອນ</a>
+        <a href="pos-customers.html" class="nav-item">👥 ລູກຄ້າ</a>
+        <a href="pos-reports.html" class="nav-item admin-only">📊 ລາຍງານ</a>
+    </div>
+    <div class="user-info">
+        <div class="user-name" id="user-name-display">ກຳລັງໂຫຼດ...</div>
+        <button class="logout-btn" onclick="handleLogout()">🚪 ອອກຈາກລະບົບ</button>
+    </div>
+</nav>
+
+<main class="main">
+    <div class="header">
+        <h1>💰 ຄຸ້ມຄອງຄ່າໃຊ້ຈ່າຍ</h1>
+        <button class="btn-primary" onclick="openExpenseModal()">+ ເພີ່ມຄ່າໃຊ້ຈ່າຍ</button>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="label">ຄ່າໃຊ້ຈ່າຍມື້ນີ້</div>
+            <div class="value" id="today-expenses">₭0</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">ຄ່າໃຊ້ຈ່າຍເດືອນນີ້</div>
+            <div class="value" id="month-expenses">₭0</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">ຄ່າໃຊ້ຈ່າຍທັງໝົດ</div>
+            <div class="value" id="total-expenses">₭0</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">ຄ່າໃຊ້ຈ່າຍສະເລ່ຍຕໍ່ມື້</div>
+            <div class="value" id="avg-expenses">₭0</div>
+        </div>
+    </div>
+
+    <div class="filter-bar">
+        <input type="date" id="start-date" placeholder="ວັນທີເລີ່ມ">
+        <input type="date" id="end-date" placeholder="ວັນທີສິ້ນສຸດ">
+        <select id="category-filter">
+            <option value="">ທຸກໝວດໝູ່</option>
+            <option value="ເຊົ່າ">ເຊົ່າ</option>
+            <option value="ໄຟຟ້າ">ໄຟຟ້າ</option>
+            <option value="ນ້ຳ">ນ້ຳ</option>
+            <option value="ພະນັກງານ">ພະນັກງານ</option>
+            <option value="ຂົນສົ່ງ">ຂົນສົ່ງ</option>
+            <option value="ສ້ອມແປງ">ສ້ອມແປງ</option>
+            <option value="ອຸປະກອນ">ອຸປະກອນ</option>
+            <option value="ອື່ນໆ">ອື່ນໆ</option>
+        </select>
+        <button class="btn-secondary" onclick="filterExpenses()">🔍 ຄົ້ນຫາ</button>
+        <button onclick="resetFilter()" style="background: #64748b; color: white; padding: 10px 20px; border: none; border-radius: 10px; cursor: pointer;">🔄 ຣີເຊັດ</button>
+    </div>
+
+    <div class="table-container">
+        <table class="expense-table">
+            <thead>
+                <tr>
+                    <th>ວັນທີ</th>
+                    <th>ໝວດໝູ່</th>
+                    <th>ລາຍລະອຽດ</th>
+                    <th>ຈຳນວນເງິນ</th>
+                    <th>ວິທີຈ່າຍ</th>
+                    <th>ຜູ້ບັນທຶກ</th>
+                    <th>ຈັດການ</th>
+                </tr>
+            </thead>
+            <tbody id="expenses-tbody">
+                <tr><td colspan="7" style="text-align: center; padding: 40px;">ກຳລັງໂຫຼດ...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<!-- Expense Modal -->
+<div id="expense-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="modal-title">➕ ເພີ່ມຄ່າໃຊ້ຈ່າຍ</h3>
+        <input type="date" id="expense-date" value="">
+        <select id="expense-category">
+            <option value="">ເລືອກໝວດໝູ່</option>
+            <option value="ເຊົ່າ">ເຊົ່າ</option>
+            <option value="ໄຟຟ້າ">ໄຟຟ້າ</option>
+            <option value="ນ້ຳ">ນ້ຳ</option>
+            <option value="ພະນັກງານ">ພະນັກງານ</option>
+            <option value="ຂົນສົ່ງ">ຂົນສົ່ງ</option>
+            <option value="ສ້ອມແປງ">ສ້ອມແປງ</option>
+            <option value="ອຸປະກອນ">ອຸປະກອນ</option>
+            <option value="ອື່ນໆ">ອື່ນໆ</option>
+        </select>
+        <textarea id="expense-description" rows="2" placeholder="ລາຍລະອຽດ..."></textarea>
+        <input type="number" id="expense-amount" placeholder="ຈຳນວນເງິນ (₭)" step="1000">
+        <select id="payment-method">
+            <option value="ສົດ">ສົດ</option>
+            <option value="ໂອນເງິນ">ໂອນເງິນ</option>
+            <option value="ເຊັກ">ເຊັກ</option>
+        </select>
+        <div class="modal-buttons">
+            <button class="btn-primary" onclick="saveExpense()">💾 ບັນທຶກ</button>
+            <button class="btn-secondary" onclick="closeExpenseModal()">❌ ຍົກເລີກ</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+
+<script>
+let allExpenses = [];
+let editingExpenseId = null;
+
+function formatLAK(amount) {
+    if (isNaN(amount)) return '₭0';
+    return new Intl.NumberFormat('lo-LA').format(amount) + ' ₭';
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+async function loadExpenses() {
+    try {
+        const { data, error } = await window.supabaseClient
+            .from('pos_expenses')
+            .select('*')
+            .order('expense_date', { ascending: false });
+        
+        if (error) throw error;
+        allExpenses = data || [];
+        renderExpenses(allExpenses);
+        updateStats();
+    } catch (err) {
+        console.error(err);
+        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
+    }
+}
+
+function renderExpenses(expenses) {
+    const tbody = document.getElementById('expenses-tbody');
+    
+    if (expenses.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">ບໍ່ມີຂໍ້ມູນ</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = expenses.map(exp => `
+        <tr>
+            <td>${new Date(exp.expense_date).toLocaleDateString('lo-LA')}</td>
+            <td>${exp.category}</td>
+            <td>${exp.description || '-'}</td>
+            <td style="color: var(--danger); font-weight: 600;">-${formatLAK(exp.amount)}</td>
+            <td>${exp.payment_method || '-'}</td>
+            <td>${exp.created_by || '-'}</td>
+            <td><button class="delete-expense" onclick="deleteExpense('${exp.id}')">🗑️ ລຶບ</button></td>
+        </tr>
+    `).join('');
+}
+
+async function updateStats() {
+    const today = new Date().toISOString().split('T')[0];
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    let todayTotal = 0;
+    let monthTotal = 0;
+    let total = 0;
+    
+    // Calculate days with expenses for average
+    const daysWithExpenses = new Set();
+    
+    allExpenses.forEach(exp => {
+        total += exp.amount;
+        daysWithExpenses.add(exp.expense_date);
+        
+        if (exp.expense_date === today) {
+            todayTotal += exp.amount;
+        }
+        const expDate = new Date(exp.expense_date);
+        if (expDate.getMonth() === currentMonth && expDate.getFullYear() === currentYear) {
+            monthTotal += exp.amount;
+        }
+    });
+    
+    const avgDaily = daysWithExpenses.size > 0 ? total / daysWithExpenses.size : 0;
+    
+    document.getElementById('today-expenses').innerHTML = formatLAK(todayTotal);
+    document.getElementById('month-expenses').innerHTML = formatLAK(monthTotal);
+    document.getElementById('total-expenses').innerHTML = formatLAK(total);
+    document.getElementById('avg-expenses').innerHTML = formatLAK(avgDaily);
+}
+
+function filterExpenses() {
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    const category = document.getElementById('category-filter').value;
+    
+    let filtered = [...allExpenses];
+    
+    if (startDate) {
+        filtered = filtered.filter(e => e.expense_date >= startDate);
+    }
+    if (endDate) {
+        filtered = filtered.filter(e => e.expense_date <= endDate);
+    }
+    if (category) {
+        filtered = filtered.filter(e => e.category === category);
+    }
+    
+    renderExpenses(filtered);
+}
+
+function resetFilter() {
+    document.getElementById('start-date').value = '';
+    document.getElementById('end-date').value = '';
+    document.getElementById('category-filter').value = '';
+    renderExpenses(allExpenses);
+}
+
+function openExpenseModal() {
+    editingExpenseId = null;
+    document.getElementById('modal-title').innerHTML = '➕ ເພີ່ມຄ່າໃຊ້ຈ່າຍ';
+    document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('expense-category').value = '';
+    document.getElementById('expense-description').value = '';
+    document.getElementById('expense-amount').value = '';
+    document.getElementById('payment-method').value = 'ສົດ';
+    document.getElementById('expense-modal').style.display = 'flex';
+}
+
+function closeExpenseModal() {
+    document.getElementById('expense-modal').style.display = 'none';
+}
+
+async function saveExpense() {
+    const expenseDate = document.getElementById('expense-date').value;
+    const category = document.getElementById('expense-category').value;
+    const description = document.getElementById('expense-description').value;
+    const amount = parseFloat(document.getElementById('expense-amount').value);
+    const paymentMethod = document.getElementById('payment-method').value;
+    
+    if (!expenseDate || !category || !amount || amount <= 0) {
+        showToast('ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ', 'error');
+        return;
+    }
+    
+    const user = getCurrentUser();
+    const expenseData = {
+        expense_date: expenseDate,
+        category: category,
+        description: description,
+        amount: amount,
+        payment_method: paymentMethod,
+        created_by: user.name || 'Admin'
+    };
+    
+    try {
+        const { error } = await window.supabaseClient
+            .from('pos_expenses')
+            .insert([expenseData]);
+        
+        if (error) throw error;
+        
+        showToast('ບັນທຶກຄ່າໃຊ້ຈ່າຍສຳເລັດ', 'success');
+        closeExpenseModal();
+        loadExpenses();
+        
+    } catch (err) {
+        console.error(err);
+        showToast('ເກີດຂໍ້ຜິດພາດ: ' + err.message, 'error');
+    }
+}
+
+async function deleteExpense(expenseId) {
+    if (!confirm('ຕ້ອງການລຶບລາຍການນີ້?')) return;
+    
+    try {
+        const { error } = await window.supabaseClient
+            .from('pos_expenses')
+            .delete()
+            .eq('id', expenseId);
+        
+        if (error) throw error;
+        
+        showToast('ລຶບສຳເລັດ', 'success');
+        loadExpenses();
+        
+    } catch (err) {
+        console.error(err);
+        showToast('ລຶບບໍ່ສຳເລັດ', 'error');
+    }
+}
+
+function init() {
+    if (!checkAuth()) return;
+    const user = getCurrentUser();
+    if (user.role !== 'GM') {
+        window.location.href = 'pos-checkout.html';
+        return;
+    }
+    displayUserName();
+    loadExpenses();
+}
+
+init();
+</script>
+</body>
+</html>
