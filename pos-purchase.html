@@ -439,9 +439,14 @@ async function receivePurchaseOrder(poId) {
                 .single();
             
             if (product) {
+                // Convert both values to numbers before adding
+                const currentStock = Number(product.stock_qty) || 0;
+                const purchasedQty = Number(item.qty) || 0;
+                const newStock = currentStock + purchasedQty;
+                
                 await window.supabaseClient
                     .from('pos_products')
-                    .update({ stock_qty: product.stock_qty + item.qty })
+                    .update({ stock_qty: newStock })
                     .eq('id', item.product_id);
             }
         }
@@ -458,14 +463,14 @@ async function receivePurchaseOrder(poId) {
         
         showToast('ຮັບສິນຄ້າສຳເລັດ', 'success');
         loadPurchaseOrders();
-        if (typeof loadProducts === 'function') loadProducts();
+        loadProducts(); // Remove the typeof check, call directly
         
     } catch (err) {
         console.error(err);
         showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
     }
 }
-
+    
 function init() {
     if (!checkAuth()) return;
     const user = getCurrentUser();
