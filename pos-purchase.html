@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mPOS | ສັ່ງຊື້ສິນຄ້າ</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --sidebar: #0f172a;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --lao: 'Phetsarath', sans-serif;
+        }
+        body {
+            margin: 0;
+            display: flex;
+            background: var(--bg);
+            font-family: 'Plus Jakarta Sans', var(--lao);
+            height: 100vh;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar);
+            color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        .logo {
+            padding: 24px 20px;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--primary);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .nav-menu { flex: 1; padding: 20px; }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: #94a3b8;
+            text-decoration: none;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+        .nav-item.active { background: var(--primary); color: white; }
+        .admin-only { display: flex; }
+        .user-info { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .user-name { font-weight: 600; margin-bottom: 10px; font-size: 13px; }
+        .logout-btn {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: none;
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            text-align: left;
+        }
+        .main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h1 { font-size: 24px; color: var(--text); }
+        .add-btn {
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .po-card {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            margin-bottom: 15px;
+            padding: 20px;
+        }
+        .po-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .po-number { font-weight: 800; font-size: 16px; color: var(--primary-dark); }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-pending { background: #fef3c7; color: #b45309; }
+        .status-received { background: #d1fae5; color: #065f46; }
+        .items-list { margin: 10px 0; }
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .po-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .receive-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 25px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+        .modal-content input, .modal-content select, .modal-content textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            outline: none;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .toast {
+            position: fixed; bottom: 20px; right: 20px; padding: 12px 20px;
+            border-radius: 12px; color: white; font-weight: bold; z-index: 10000;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="sidebar">
+    <div class="logo"><span>⚡</span> mPOS</div>
+    <div class="nav-menu">
+        <a href="index.html" class="nav-item admin-only">📊 Dashboard</a>
+        <a href="pos-checkout.html" class="nav-item">🛒 ຂາຍສິນຄ້າ</a>
+        <a href="pos-inventory.html" class="nav-item admin-only">📦 ຄັງສິນຄ້າ</a>
+        <a href="pos-purchase.html" class="nav-item active">📋 ສັ່ງຊື້ສິນຄ້າ</a>
+        <a href="pos-customers.html" class="nav-item">👥 ລູກຄ້າ</a>
+        <a href="pos-reports.html" class="nav-item admin-only">📊 ລາຍງານ</a>
+    </div>
+    <div class="user-info">
+        <div class="user-name" id="user-name-display">ກຳລັງໂຫຼດ...</div>
+        <button class="logout-btn" onclick="handleLogout()">🚪 ອອກຈາກລະບົບ</button>
+    </div>
+</nav>
+
+<main class="main">
+    <div class="header">
+        <h1>📋 ສັ່ງຊື້ສິນຄ້າ</h1>
+        <button class="add-btn" onclick="openCreatePO()">+ ສ້າງໃບສັ່ງຊື້</button>
+    </div>
+    <div id="po-list"></div>
+</main>
+
+<!-- Create PO Modal -->
+<div id="po-modal" class="modal">
+    <div class="modal-content">
+        <h3>📋 ສ້າງໃບສັ່ງຊື້</h3>
+        <input type="text" id="supplier-name" placeholder="ຊື່ຜູ້ສະໜອງ *">
+        <input type="text" id="supplier-phone" placeholder="ເບີໂທຜູ້ສະໜອງ">
+        <div id="po-items-container"></div>
+        <button onclick="addPOItem()" style="background: #f1f5f9; border: 1px dashed #10b981; padding: 8px; border-radius: 8px; margin-bottom: 10px;">+ ເພີ່ມສິນຄ້າ</button>
+        <textarea id="po-notes" rows="2" placeholder="ໝາຍເຫດ"></textarea>
+        <div class="modal-buttons">
+            <button class="save-btn" onclick="savePurchaseOrder()" style="background: #10b981; color: white;">ບັນທຶກ</button>
+            <button class="cancel-btn" onclick="closePOModal()">ຍົກເລີກ</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+
+<script>
+let poItems = [];
+let allProducts = [];
+
+function formatLAK(amount) {
+    return new Intl.NumberFormat('lo-LA').format(amount) + ' ₭';
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+async function loadProducts() {
+    const { data } = await window.supabaseClient
+        .from('pos_products')
+        .select('id, barcode, name, retail_price');
+    allProducts = data || [];
+}
+
+async function loadPurchaseOrders() {
+    const { data } = await window.supabaseClient
+        .from('pos_purchase_orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+    
+    const container = document.getElementById('po-list');
+    if (!data || data.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 40px;">ຍັງບໍ່ມີໃບສັ່ງຊື້</div>';
+        return;
+    }
+    
+    container.innerHTML = data.map(po => `
+        <div class="po-card">
+            <div class="po-header">
+                <div>
+                    <div class="po-number">${po.po_number}</div>
+                    <div style="font-size: 12px; color: #64748b;">${new Date(po.order_date).toLocaleDateString('lo-LA')}</div>
+                </div>
+                <div>
+                    <span class="status-badge status-${po.status.toLowerCase()}">${po.status === 'PENDING' ? 'ລໍຖ້າຮັບສິນຄ້າ' : 'ຮັບສິນຄ້າແລ້ວ'}</span>
+                </div>
+            </div>
+            <div><strong>ຜູ້ສະໜອງ:</strong> ${po.supplier_name}</div>
+            <div class="items-list">
+                ${po.items.map(item => `
+                    <div class="item-row">
+                        <span>${item.name} x${item.qty}</span>
+                        <span>${formatLAK(item.price * item.qty)}</span>
+                    </div>
+                `).join('')}
+            </div>
+            <div style="text-align: right; font-weight: bold; margin-top: 10px;">
+                ລວມ: ${formatLAK(po.total_amount)}
+            </div>
+            ${po.status === 'PENDING' ? `
+                <div class="po-actions">
+                    <button class="receive-btn" onclick="receivePurchaseOrder('${po.id}')">📦 ຮັບສິນຄ້າ</button>
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+function openCreatePO() {
+    poItems = [];
+    document.getElementById('supplier-name').value = '';
+    document.getElementById('supplier-phone').value = '';
+    document.getElementById('po-notes').value = '';
+    renderPOItems();
+    document.getElementById('po-modal').style.display = 'flex';
+}
+
+function renderPOItems() {
+    const container = document.getElementById('po-items-container');
+    if (poItems.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">ຍັງບໍ່ມີສິນຄ້າ</div>';
+        return;
+    }
+    
+    container.innerHTML = poItems.map((item, idx) => `
+        <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+            <select onchange="updatePOItem(${idx}, 'product_id', this.value)" style="flex: 2;">
+                <option value="">ເລືອກສິນຄ້າ</option>
+                ${allProducts.map(p => `<option value="${p.id}" ${item.product_id === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
+            </select>
+            <input type="number" placeholder="ຈຳນວນ" value="${item.qty || ''}" onchange="updatePOItem(${idx}, 'qty', this.value)" style="width: 100px;">
+            <input type="number" placeholder="ລາຄາ" value="${item.price || ''}" onchange="updatePOItem(${idx}, 'price', this.value)" style="width: 120px;">
+            <button onclick="removePOItem(${idx})" style="background: #fee2e2; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer;">🗑️</button>
+        </div>
+    `).join('');
+}
+
+function updatePOItem(idx, field, value) {
+    if (field === 'product_id') {
+        const product = allProducts.find(p => p.id === value);
+        if (product) {
+            poItems[idx] = {
+                ...poItems[idx],
+                product_id: value,
+                name: product.name,
+                price: product.retail_price
+            };
+        }
+    } else {
+        poItems[idx] = { ...poItems[idx], [field]: value };
+    }
+    renderPOItems();
+}
+
+function addPOItem() {
+    poItems.push({ product_id: '', name: '', qty: 1, price: 0 });
+    renderPOItems();
+}
+
+function removePOItem(idx) {
+    poItems.splice(idx, 1);
+    renderPOItems();
+}
+
+function closePOModal() {
+    document.getElementById('po-modal').style.display = 'none';
+}
+
+async function savePurchaseOrder() {
+    const supplierName = document.getElementById('supplier-name').value.trim();
+    if (!supplierName) {
+        showToast('ກະລຸນາປ້ອນຊື່ຜູ້ສະໜອງ', 'error');
+        return;
+    }
+    
+    if (poItems.length === 0) {
+        showToast('ກະລຸນາເພີ່ມສິນຄ້າ', 'error');
+        return;
+    }
+    
+    const validItems = poItems.filter(item => item.product_id && item.qty > 0 && item.price > 0);
+    if (validItems.length === 0) {
+        showToast('ກະລຸນາປ້ອນຂໍ້ມູນສິນຄ້າໃຫ້ຄົບ', 'error');
+        return;
+    }
+    
+    const subtotal = validItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const totalAmount = subtotal;
+    
+    const poNumber = 'PO-' + new Date().getFullYear().toString().slice(-2) + 
+                     (new Date().getMonth() + 1).toString().padStart(2, '0') + 
+                     new Date().getDate().toString().padStart(2, '0') + '-' +
+                     Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    
+    const poData = {
+        po_number: poNumber,
+        supplier_name: supplierName,
+        supplier_phone: document.getElementById('supplier-phone').value,
+        items: validItems,
+        subtotal: subtotal,
+        total_amount: totalAmount,
+        status: 'PENDING',
+        ordered_by: getCurrentUser().name,
+        notes: document.getElementById('po-notes').value
+    };
+    
+    try {
+        const { error } = await window.supabaseClient
+            .from('pos_purchase_orders')
+            .insert([poData]);
+        
+        if (error) throw error;
+        
+        showToast('ສ້າງໃບສັ່ງຊື້ສຳເລັດ', 'success');
+        closePOModal();
+        loadPurchaseOrders();
+        
+    } catch (err) {
+        console.error(err);
+        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
+    }
+}
+
+async function receivePurchaseOrder(poId) {
+    if (!confirm('ຢືນຢັນການຮັບສິນຄ້າ? ສິນຄ້າຈະຖືກເພີ່ມເຂົ້າສາງ')) return;
+    
+    try {
+        const { data: po } = await window.supabaseClient
+            .from('pos_purchase_orders')
+            .select('*')
+            .eq('id', poId)
+            .single();
+        
+        if (!po) throw new Error('Not found');
+        
+        // Update inventory
+        for (const item of po.items) {
+            const { data: product } = await window.supabaseClient
+                .from('pos_products')
+                .select('stock_qty')
+                .eq('id', item.product_id)
+                .single();
+            
+            if (product) {
+                await window.supabaseClient
+                    .from('pos_products')
+                    .update({ stock_qty: product.stock_qty + item.qty })
+                    .eq('id', item.product_id);
+            }
+        }
+        
+        // Update PO status
+        await window.supabaseClient
+            .from('pos_purchase_orders')
+            .update({ 
+                status: 'RECEIVED', 
+                received_date: new Date().toISOString(),
+                received_by: getCurrentUser().name
+            })
+            .eq('id', poId);
+        
+        showToast('ຮັບສິນຄ້າສຳເລັດ', 'success');
+        loadPurchaseOrders();
+        if (typeof loadProducts === 'function') loadProducts();
+        
+    } catch (err) {
+        console.error(err);
+        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
+    }
+}
+
+function init() {
+    if (!checkAuth()) return;
+    const user = getCurrentUser();
+    if (user.role !== 'GM') {
+        window.location.href = 'pos-checkout.html';
+        return;
+    }
+    displayUserName();
+    loadProducts();
+    loadPurchaseOrders();
+}
+
+init();
+</script>
+</body>
+</html>
