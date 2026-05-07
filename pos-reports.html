@@ -199,16 +199,32 @@
     </div>
     
     <div class="stats-grid">
-        <div class="stat-card"><div class="label">ລາຍຮັບທັງໝົດ</div><div class="value" id="total-revenue">₭0</div></div>
-        <div class="stat-card"><div class="label">ຈຳນວນບິນ</div><div class="value" id="total-orders">0</div></div>
-        <div class="stat-card"><div class="label">ຄ່າສະເລ່ຍຕໍ່ບິນ</div><div class="value" id="avg-order">₭0</div></div>
-        <div class="stat-card"><div class="label">ສິນຄ້າທີ່ຂາຍໄດ້</div><div class="value" id="total-items">0</div></div>
+    <div class="stat-card"><div class="label">ລາຍຮັບທັງໝົດ</div><div class="value" id="total-revenue">₭0</div></div>
+    <div class="stat-card"><div class="label">ຈຳນວນບິນ</div><div class="value" id="total-orders">0</div></div>
+    <div class="stat-card"><div class="label">ຄ່າສະເລ່ຍຕໍ່ບິນ</div><div class="value" id="avg-order">₭0</div></div>
+    <div class="stat-card"><div class="label">ສິນຄ້າທີ່ຂາຍໄດ້</div><div class="value" id="total-items">0</div></div>
+</div>
+
+<!-- NEW PROFIT/LOSS SECTION - ADD THIS -->
+<div class="stats-grid" style="margin-top: 20px;">
+    <div class="stat-card" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+        <div class="label" style="color: rgba(255,255,255,0.9);">ກຳໄລລວມ (Gross Profit)</div>
+        <div class="value" id="gross-profit" style="color: white;">₭0</div>
     </div>
-    
-    <div class="chart-container">
-        <h3>📈 ຍອດຂາຍລາຍວັນ</h3>
-        <canvas id="sales-chart" height="80"></canvas>
+    <div class="stat-card" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">
+        <div class="label" style="color: rgba(255,255,255,0.9);">ຄ່າໃຊ້ຈ່າຍທັງໝົດ</div>
+        <div class="value" id="profit-expenses" style="color: white;">₭0</div>
     </div>
+    <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
+        <div class="label" style="color: rgba(255,255,255,0.9);">ກຳໄລສຸດທິ (Net Profit)</div>
+        <div class="value" id="net-profit" style="color: white;">₭0</div>
+    </div>
+</div>
+
+<div class="chart-container">
+    <h3>📈 ຍອດຂາຍລາຍວັນ</h3>
+    <canvas id="sales-chart" height="80"></canvas>
+</div>
     
     <div class="two-columns">
         <div class="card">
@@ -294,6 +310,14 @@ async function loadReports() {
         document.getElementById('avg-order').innerHTML = formatLAK(avgOrder);
         document.getElementById('total-items').innerHTML = totalItemsSold;
         
+        // ADD THIS HERE - Calculate Profit/Loss
+        const profitData = await calculateProfitLoss(startDate, endDate);
+        if (profitData) {
+            document.getElementById('gross-profit').innerHTML = formatLAK(profitData.grossProfit);
+            document.getElementById('profit-expenses').innerHTML = formatLAK(profitData.totalExpenses);
+            document.getElementById('net-profit').innerHTML = formatLAK(profitData.netProfit);
+        }
+        
         // Daily sales chart
         const dailySales = {};
         completedSales.forEach(sale => {
@@ -369,6 +393,50 @@ async function loadReports() {
     } catch (err) {
         console.error(err);
         showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
+    }
+}
+
+// Add this function BEFORE init()
+async function calculateProfitLoss(startDate, endDate) {
+    try {
+        // Get sales
+        const { data: sales } = await window.supabaseClient
+            .from('pos_sales')
+            .select('items, total_amount')
+            .gte('created_at', `${startDate}T00:00:00`)
+            .lte('created_at', `${endDate}T23:59:59`)
+            .eq('status', 'COMPLETED');
+        
+        // Get expenses
+        const { data: expenses } = await window.supabaseClient
+            .from('pos_expenses')
+            .select('amount')
+            .gte('expense_date', startDate)
+            .lte('expense_date', endDate);
+        
+        // Calculate cost of goods sold from sales items
+        let totalCost = 0;
+        let totalRevenue = 0;
+        
+        if (sales) {
+            sales.forEach(sale => {
+                totalRevenue += sale.total_amount || 0;
+                const items = Array.isArray(sale.items) ? sale.items : (sale.items ? JSON.parse(sale.items) : []);
+                items.forEach(item => {
+                    totalCost += (item.cost_price || 0) * item.qty;
+                });
+            });
+        }
+        
+        const totalExpenses = expenses ? expenses.reduce((sum, e) => sum + e.amount, 0) : 0;
+        const grossProfit = totalRevenue - totalCost;
+        const netProfit = grossProfit - totalExpenses;
+        
+        return { totalRevenue, totalCost, totalExpenses, grossProfit, netProfit };
+        
+    } catch (err) {
+        console.error(err);
+        return null;
     }
 }
 
