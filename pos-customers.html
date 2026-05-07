@@ -299,15 +299,18 @@ function renderCustomers(customers) {
         return;
     }
     tbody.innerHTML = customers.map(c => `
-        <tr>
-            <td><b>${c.phone}</b></td>
-            <td>${c.name}</td>
-            <td><span class="points-badge">⭐ ${c.points || 0}</span></td>
-            <td>${formatLAK(c.total_spent || 0)}</td>
-            <td style="font-size: 12px; color: #64748b;">${new Date(c.created_at).toLocaleDateString('lo-LA')}</td>
-            <td><button class="delete-btn" onclick="deleteCustomer('${c.phone}')">ລຶບ</button></td>
-        </tr>
-    `).join('');
+    <tr>
+        <td><b>${c.phone}</b></td>
+        <td>${c.name}</td>
+        <td><span class="points-badge">⭐ ${c.points || 0}</span></td>
+        <td>${formatLAK(c.total_spent || 0)}</td>
+        <td style="font-size: 12px; color: #64748b;">${new Date(c.created_at).toLocaleDateString('lo-LA')}</td>
+        <td>
+            <button class="history-btn" onclick="viewCustomerHistory('${c.phone}')" style="background: #e0f2fe; color: #0369a1; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; margin-right: 5px;">📜 ປະຫວັດ</button>
+            <button class="delete-btn" onclick="deleteCustomer('${c.phone}')">ລຶບ</button>
+        </td>
+    </tr>
+`).join('');
 }
 
 function searchCustomers() {
@@ -367,7 +370,6 @@ async function saveCustomer() {
         showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
     }
 }
-
 async function deleteCustomer(phone) {
     if (!confirm('ຕ້ອງການລຶບລູກຄ້ານີ້?')) return;
     try {
@@ -381,6 +383,86 @@ async function deleteCustomer(phone) {
     } catch (err) {
         console.error(err);
         showToast('ລຶບບໍ່ສຳເລັດ', 'error');
+    }
+}
+
+// Add this function RIGHT HERE - after deleteCustomer and before init()
+async function viewCustomerHistory(customerPhone) {
+    try {
+        const { data: customer, error: customerError } = await window.supabaseClient
+            .from('pos_customers')
+            .select('*')
+            .eq('phone', customerPhone)
+            .single();
+        
+        if (customerError) throw customerError;
+        
+        const { data: sales, error } = await window.supabaseClient
+            .from('pos_sales')
+            .select('*')
+            .eq('customer_phone', customerPhone)
+            .eq('status', 'COMPLETED')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (!sales || sales.length === 0) {
+            showToast('ລູກຄ້ານີ້ຍັງບໍ່ເຄີຍມີການສັ່ງຊື້', 'warning');
+            return;
+        }
+        
+        const totalSpent = sales.reduce((sum, s) => sum + s.total_amount, 0);
+        
+        let historyHtml = `
+            <div style="max-height: 500px; overflow-y: auto;">
+                <h3>📜 ປະຫວັດການສັ່ງຊື້</h3>
+                <div style="background: #f1f5f9; padding: 10px; border-radius: 12px; margin: 10px 0;">
+                    <div><strong>ຊື່:</strong> ${customer.name}</div>
+                    <div><strong>ເບີໂທ:</strong> ${customer.phone}</div>
+                    <div><strong>ຄະແນນສະສົມ:</strong> ⭐ ${customer.points || 0}</div>
+                    <div><strong>ຍອດຊື້ທັງໝົດ:</strong> ${formatLAK(totalSpent)}</div>
+                </div>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f1f5f9;">
+                            <th style="padding: 10px; text-align: left;">ວັນທີ</th>
+                            <th style="padding: 10px; text-align: left;">ເລກທີໃບບິນ</th>
+                            <th style="padding: 10px; text-align: right;">ຍອດລວມ</th>
+                            <th style="padding: 10px; text-align: right;">ຄະແນນທີ່ໄດ້</th>
+                            <th style="padding: 10px; text-align: right;">ສ່ວນຫຼຸດ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sales.map(sale => `
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${new Date(sale.created_at).toLocaleDateString('lo-LA')}</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${sale.invoice_number || sale.id.substring(0,8).toUpperCase()}</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">${formatLAK(sale.total_amount)}</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">⭐ ${sale.points_earned || 0}</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">${formatLAK(sale.discount_amount || 0)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content" style="width: 90%; max-width: 900px;">
+                ${historyHtml}
+                <div class="modal-buttons" style="margin-top: 20px;">
+                    <button class="cancel-btn" onclick="this.closest('.modal').remove()">ປິດ</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+    } catch (err) {
+        console.error(err);
+        showToast('ເກີດຂໍ້ຜິດພາດ', 'error');
     }
 }
 
