@@ -870,6 +870,7 @@ async function searchCustomer() {
     if (!phone || phone.length < 10) {
         document.getElementById('customer-info').style.display = 'none';
         selectedCustomer = null;
+        document.getElementById('barcode-input').focus();
         return;
     }
     
@@ -891,6 +892,7 @@ async function searchCustomer() {
         selectedCustomer = null;
         document.getElementById('customer-info').style.display = 'none';
     }
+    document.getElementById('barcode-input').focus();
 }
 
 function displayCustomerInfo(customer) {
