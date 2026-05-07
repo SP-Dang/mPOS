@@ -590,48 +590,28 @@ async function updateCustomerDisplay() {
     }
 }
     
-async function updateCustomerDisplay() {
+async function markCustomerDisplayPaid() {
     if (!window.supabaseClient || !isOnline) return;
     try {
-        const { total } = calculateTotals();
-        const qrString = paymentMethod === 'QR Code' && total > 0 ? generateQRString(total) : '';
-        
-        // Make sure items is properly formatted as JSON
-        const itemsJson = cart.map(item => ({
-            name: item.name,
-            barcode: item.barcode,
-            retail_price: item.retail_price,
-            qty: item.qty
-        }));
-        
-        console.log('📤 Sending to customer display:', {
-            amount: total,
-            items: itemsJson,
-            qr_string: qrString,
-            payment_method: paymentMethod
-        });
-        
-        const { data, error } = await window.supabaseClient
+        const { error } = await window.supabaseClient
             .from('pos_customer_display')
             .upsert({
                 id: CUSTOMER_DISPLAY_ID,
-                amount: total,
-                status: 'PENDING',
-                items: itemsJson,  // Send the cleaned items array
-                payment_method: paymentMethod,
-                qr_string: qrString,
+                status: 'PAID',
+                qr_string: '',
                 updated_at: new Date().toISOString()
             });
         
         if (error) {
-            console.error('❌ Error saving to customer display:', error);
+            console.error('Mark paid error:', error);
         } else {
-            console.log('✅ Customer display updated:', data);
+            console.log('✅ Customer display marked as PAID');
         }
     } catch (err) {
-        console.error('Display error:', err);
+        console.error('Mark paid error:', err);
     }
-}    
+}
+    
 function calculateTotals() {
     const total = cart.reduce((sum, item) => sum + (item.retail_price * item.qty), 0) - currentDiscount;
     const tax = total * (window.TAX_RATE / (100 + window.TAX_RATE));
